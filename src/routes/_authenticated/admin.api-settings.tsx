@@ -5,14 +5,14 @@ import { getAdminApiSettings, saveAdminApiSettings, testAiApiConnection } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Sparkles, Key, CreditCard, Send, Zap, CheckCircle2, AlertCircle, Save } from "lucide-react";
+import { Sparkles, Key, CreditCard, Send, Zap, CheckCircle2, AlertCircle, Save, ShieldCheck, Youtube, PlayCircle } from "lucide-react";
 import { failMessage } from "@/lib/friendly-error";
 
 export const Route = createFileRoute("/_authenticated/admin/api-settings")({
   head: () => ({
     meta: [
       { title: "API & Model Settings — Admin" },
-      { name: "description", content: "Configure AI models, API keys, Razorpay gateway, and Telegram alerts." },
+      { name: "description", content: "Configure AI models, API keys, Razorpay gateway, Sub2Unlock & Monetag, and Telegram alerts." },
     ],
   }),
   component: AdminApiSettingsPage,
@@ -42,6 +42,14 @@ function AdminApiSettingsPage() {
   const [telegramKey, setTelegramKey] = useState("");
   const [telegramChatId, setTelegramChatId] = useState("");
 
+  // Sub2Unlock & Monetag state
+  const [megaSub2UnlockEnabled, setMegaSub2UnlockEnabled] = useState(true);
+  const [monetagDirectLink, setMonetagDirectLink] = useState("");
+  const [monetagScriptId, setMonetagScriptId] = useState("");
+  const [youtubeSubUrl, setYoutubeSubUrl] = useState("");
+  const [telegramChannelUrl, setTelegramChannelUrl] = useState("");
+  const [sub2UnlockTimerSec, setSub2UnlockTimerSec] = useState(10);
+
   const [testResult, setTestResult] = useState<{ ok: boolean; response?: string; latency_ms?: number; error?: string } | null>(null);
 
   useEffect(() => {
@@ -65,6 +73,13 @@ function AdminApiSettingsPage() {
 
       setTelegramKey(q.data.telegram_api_key);
       setTelegramChatId(q.data.report_telegram_chat_id);
+
+      setMegaSub2UnlockEnabled(q.data.mega_sub2unlock_enabled !== false);
+      setMonetagDirectLink(q.data.monetag_direct_link || "");
+      setMonetagScriptId(q.data.monetag_script_id || "");
+      setYoutubeSubUrl(q.data.youtube_sub_url || "");
+      setTelegramChannelUrl(q.data.telegram_channel_url || "");
+      setSub2UnlockTimerSec(q.data.sub2unlock_timer_sec || 10);
     }
   }, [q.data]);
 
@@ -87,6 +102,12 @@ function AdminApiSettingsPage() {
           razorpay_webhook_secret: razorpayWebhookSecret,
           telegram_api_key: telegramKey,
           report_telegram_chat_id: telegramChatId,
+          mega_sub2unlock_enabled: megaSub2UnlockEnabled,
+          monetag_direct_link: monetagDirectLink,
+          monetag_script_id: monetagScriptId,
+          youtube_sub_url: youtubeSubUrl,
+          telegram_channel_url: telegramChannelUrl,
+          sub2unlock_timer_sec: sub2UnlockTimerSec,
         },
       }),
     onSuccess: (res) => {
@@ -118,10 +139,10 @@ function AdminApiSettingsPage() {
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
         <div>
           <h1 className="text-xl font-bold flex items-center gap-2">
-            <Key className="h-5 w-5 text-primary" /> API & Model Settings
+            <Key className="h-5 w-5 text-primary" /> API & System Settings
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Configure AI models (Gemini 3.6 Flash, OpenRouter, Grok, Custom APIs), Razorpay payments, and Telegram alerts.
+            Configure AI models, Razorpay payments, Sub2Unlock & Monetag ad links, and Telegram alerts.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -158,6 +179,101 @@ function AdminApiSettingsPage() {
           </p>
         </div>
       )}
+
+      {/* Sub2Unlock & Monetag Ad Gate Configuration */}
+      <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5 space-y-4">
+        <div className="flex items-center justify-between border-b border-border pb-3">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-amber-500" />
+            <div>
+              <h2 className="text-sm font-semibold">Sunday Mega Test Sub2Unlock & Monetag Ads Gate</h2>
+              <p className="text-[11px] text-muted-foreground">
+                Require users to complete steps (YouTube subscribe, Monetag ad link, Telegram) before registering for Sunday Mega Test.
+              </p>
+            </div>
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+              checked={megaSub2UnlockEnabled}
+              onChange={(e) => setMegaSub2UnlockEnabled(e.target.checked)}
+            />
+            <span className="text-xs font-bold text-foreground">
+              {megaSub2UnlockEnabled ? "Gate Enabled" : "Gate Disabled"}
+            </span>
+          </label>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
+              <PlayCircle className="h-3.5 w-3.5 text-amber-500" /> Monetag Direct Link URL
+            </label>
+            <Input
+              type="text"
+              placeholder="https://sub2unlock.io/ACWbm or Monetag Direct Link"
+              className="mt-1 font-mono text-xs"
+              value={monetagDirectLink}
+              onChange={(e) => setMonetagDirectLink(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
+              <PlayCircle className="h-3.5 w-3.5 text-amber-500" /> Monetag Script Zone ID (Optional)
+            </label>
+            <Input
+              type="text"
+              placeholder="e.g. 1234567"
+              className="mt-1 font-mono text-xs"
+              value={monetagScriptId}
+              onChange={(e) => setMonetagScriptId(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
+              <Youtube className="h-3.5 w-3.5 text-red-500" /> YouTube Channel Subscribe URL
+            </label>
+            <Input
+              type="text"
+              placeholder="https://youtube.com/@LastTopper"
+              className="mt-1 font-mono text-xs"
+              value={youtubeSubUrl}
+              onChange={(e) => setYoutubeSubUrl(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
+              <Send className="h-3.5 w-3.5 text-sky-500" /> Telegram Channel URL
+            </label>
+            <Input
+              type="text"
+              placeholder="https://t.me/LastTopper"
+              className="mt-1 font-mono text-xs"
+              value={telegramChannelUrl}
+              onChange={(e) => setTelegramChannelUrl(e.target.value)}
+            />
+          </div>
+
+          <div className="sm:col-span-2">
+            <label className="text-xs font-medium text-foreground">Step Timer Duration (Seconds)</label>
+            <p className="text-[11px] text-muted-foreground mb-1">
+              Minimum seconds a user must wait per step while verifying completion.
+            </p>
+            <Input
+              type="number"
+              min={3}
+              max={60}
+              className="font-mono text-xs w-32"
+              value={sub2UnlockTimerSec}
+              onChange={(e) => setSub2UnlockTimerSec(Number(e.target.value))}
+            />
+          </div>
+        </div>
+      </div>
 
       {/* 1. Google Gemini AI Model & Keys */}
       <div className="rounded-2xl border border-border bg-card p-5 space-y-4">

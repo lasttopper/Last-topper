@@ -261,6 +261,21 @@ function nextSundayIST(): { start: Date; end: Date } {
   return { start: now, end: now };
 }
 
+export const getMegaSub2UnlockConfig = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
+    const { getAppConfig } = await import("@/lib/app-config.server");
+    const cfg = getAppConfig();
+    return {
+      enabled: cfg.mega_sub2unlock_enabled !== false,
+      monetag_direct_link: cfg.monetag_direct_link || "https://sub2unlock.io",
+      monetag_script_id: cfg.monetag_script_id || "",
+      youtube_sub_url: cfg.youtube_sub_url || "https://youtube.com/@LastTopper",
+      telegram_channel_url: cfg.telegram_channel_url || "https://t.me/LastTopper",
+      timer_seconds: cfg.sub2unlock_timer_sec || 10,
+    };
+  });
+
 export const getUpcomingMegaTest = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {

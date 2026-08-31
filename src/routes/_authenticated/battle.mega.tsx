@@ -2,8 +2,9 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Trophy, Users, Clock, Sparkles } from "lucide-react";
-import { getUpcomingMegaTest, joinMegaTest, startMegaSession } from "@/lib/battle.functions";
+import { Trophy, Users, Clock, Sparkles, Lock } from "lucide-react";
+import { getUpcomingMegaTest, joinMegaTest, startMegaSession, getMegaSub2UnlockConfig } from "@/lib/battle.functions";
+import { SundayMegaUnlockModal } from "@/components/battle/SundayMegaUnlockModal";
 import { supabase } from "@/integrations/supabase/client";
 import { failMessage } from "@/lib/friendly-error";
 
@@ -24,12 +25,21 @@ export const Route = createFileRoute("/_authenticated/battle/mega")({
 function MegaTest() {
   const navigate = useNavigate();
   const qc = useQueryClient();
+
   const q = useQuery({
     queryKey: ["mega-test"],
     queryFn: () => getUpcomingMegaTest(),
     refetchInterval: 30000,
   });
+
+  const unlockConfigQ = useQuery({
+    queryKey: ["mega-sub2unlock-config"],
+    queryFn: () => getMegaSub2UnlockConfig(),
+  });
+
+  const [showUnlockModal, setShowUnlockModal] = useState(false);
   const [now, setNow] = useState(Date.now());
+
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
@@ -49,7 +59,8 @@ function MegaTest() {
   const join = useMutation({
     mutationFn: (id: string) => joinMegaTest({ data: { mega_test_id: id } }),
     onSuccess: () => {
-      toast.success("You're registered!");
+      toast.success("You're registered for Sunday Mega Test!");
+      setShowUnlockModal(false);
       qc.invalidateQueries({ queryKey: ["mega-test"] });
     },
     onError: (e: Error) => toast.error(failMessage(e)),
@@ -73,6 +84,22 @@ function MegaTest() {
   const isDone = now >= endMs;
   const untilStartMs = Math.max(0, startMs - now);
   const untilEndMs = Math.max(0, endMs - now);
+
+  const sub2unlockCfg = unlockConfigQ.data || {
+    enabled: true,
+    monetag_direct_link: "https://sub2unlock.io",
+    youtube_sub_url: "https://youtube.com/@LastTopper",
+    telegram_channel_url: "https://t.me/LastTopper",
+    timer_seconds: 10,
+  };
+
+  const handleRegisterClick = () => {
+    if (sub2unlockCfg.enabled) {
+      setShowUnlockModal(true);
+    } else {
+      join.mutate(test.id);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -100,11 +127,11 @@ function MegaTest() {
         <div className="mt-5 flex flex-wrap gap-2">
           {!entry?.paid && !isDone && !isLive && (
             <button
-              className="battle-btn inline-flex items-center gap-2"
+              className="battle-btn inline-flex items-center gap-2 font-bold"
               disabled={join.isPending}
-              onClick={() => join.mutate(test.id)}
+              onClick={handleRegisterClick}
             >
-              <Sparkles className="h-4 w-4" />
+              {sub2unlockCfg.enabled ? <Lock className="h-4 w-4 text-amber-300" /> : <Sparkles className="h-4 w-4" />}
               {join.isPending ? "Registering…" : "Register for Free"}
             </button>
           )}
@@ -160,6 +187,18 @@ function MegaTest() {
           </li>
         </ul>
       </div>
+
+      {/* Sub2Unlock Modal */}
+      <SundayMegaUnlockModal
+        isOpen={showUnlockModal}
+        onClose={() => setShowUnlockModal(false)}
+        config={sub2unlockCfg}
+        megaTestId={test.id}
+        onCompleteRegistration={async () => {
+          await join.mutateAsync(test.id);
+        }}
+        isRegistering={join.isPending}
+      />
     </div>
   );
 }

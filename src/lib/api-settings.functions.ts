@@ -45,6 +45,14 @@ export const getAdminApiSettings = createServerFn({ method: "GET" })
       telegram_api_key: maskSecret(cfg.telegram_api_key),
       report_telegram_chat_id: cfg.report_telegram_chat_id || "",
       has_telegram: !!cfg.telegram_api_key,
+
+      // Sub2Unlock & Monetag Settings
+      mega_sub2unlock_enabled: cfg.mega_sub2unlock_enabled !== false,
+      monetag_direct_link: cfg.monetag_direct_link || "",
+      monetag_script_id: cfg.monetag_script_id || "",
+      youtube_sub_url: cfg.youtube_sub_url || "",
+      telegram_channel_url: cfg.telegram_channel_url || "",
+      sub2unlock_timer_sec: cfg.sub2unlock_timer_sec || 10,
     };
   });
 
@@ -64,6 +72,12 @@ const saveSettingsSchema = z.object({
   razorpay_webhook_secret: z.string().optional(),
   telegram_api_key: z.string().optional(),
   report_telegram_chat_id: z.string().optional(),
+  mega_sub2unlock_enabled: z.boolean().optional(),
+  monetag_direct_link: z.string().optional(),
+  monetag_script_id: z.string().optional(),
+  youtube_sub_url: z.string().optional(),
+  telegram_channel_url: z.string().optional(),
+  sub2unlock_timer_sec: z.number().optional(),
 });
 
 export const saveAdminApiSettings = createServerFn({ method: "POST" })
@@ -74,15 +88,18 @@ export const saveAdminApiSettings = createServerFn({ method: "POST" })
     const { saveAppConfig } = await import("@/lib/app-config.server");
 
     // Only update keys if a non-masked value was provided
-    const updatePayload: Record<string, string> = {};
+    const updatePayload: Record<string, any> = {};
     for (const [key, val] of Object.entries(data)) {
-      if (val !== undefined && !val.includes("••••••••")) {
+      if (val !== undefined) {
+        if (typeof val === "string" && val.includes("••••••••")) {
+          continue;
+        }
         updatePayload[key] = val;
       }
     }
 
     saveAppConfig(updatePayload);
-    return { ok: true, message: "API & Model configurations saved successfully." };
+    return { ok: true, message: "API, Sub2Unlock & Monetag configurations saved successfully." };
   });
 
 export const testAiApiConnection = createServerFn({ method: "POST" })
