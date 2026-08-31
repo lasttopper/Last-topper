@@ -8,7 +8,6 @@ import {
   History,
   Swords,
   Trophy,
-  Wallet,
   Users,
   Bell,
   User as UserIcon,

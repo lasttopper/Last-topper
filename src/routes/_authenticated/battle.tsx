@@ -1,5 +1,5 @@
 import { createFileRoute, Link, Outlet, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Swords, Trophy, Wallet, History, Zap, Users } from "lucide-react";
+import { ArrowLeft, Swords, Trophy, History, Zap, Users } from "lucide-react";
 import { failMessage } from "@/lib/friendly-error";
 
 export const Route = createFileRoute("/_authenticated/battle")({

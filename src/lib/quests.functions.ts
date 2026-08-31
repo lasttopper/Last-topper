@@ -42,7 +42,7 @@ export const pushPendingQuestReminders = createServerFn({ method: "POST" })
       pending.push({
         kind: "quest_daily",
         title: "Daily Challenge pending 🎯",
-        body: "10 quick NCERT questions are waiting — finish them and earn Topper Coins 🪙",
+        body: "10 quick NCERT questions are waiting — finish them and level up your XP ⚡",
         link: "/daily",
       });
     }
