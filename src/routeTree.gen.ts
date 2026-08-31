@@ -40,13 +40,11 @@ import { Route as AuthenticatedAdminModerationRouteImport } from './routes/_auth
 import { Route as AuthenticatedAdminPromosRouteImport } from './routes/_authenticated/admin.promos'
 import { Route as AuthenticatedAdminSocialRouteImport } from './routes/_authenticated/admin.social'
 import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin.users'
-import { Route as AuthenticatedAdminWithdrawalsRouteImport } from './routes/_authenticated/admin.withdrawals'
 import { Route as AuthenticatedBattleIndexRouteImport } from './routes/_authenticated/battle.index'
 import { Route as AuthenticatedBattle1v1RouteImport } from './routes/_authenticated/battle.1v1'
 import { Route as AuthenticatedBattleHistoryRouteImport } from './routes/_authenticated/battle.history'
 import { Route as AuthenticatedBattleLeaderboardRouteImport } from './routes/_authenticated/battle.leaderboard'
 import { Route as AuthenticatedBattleMegaRouteImport } from './routes/_authenticated/battle.mega'
-import { Route as AuthenticatedBattleWalletRouteImport } from './routes/_authenticated/battle.wallet'
 import { Route as AuthenticatedCommunityIndexRouteImport } from './routes/_authenticated/community.index'
 import { Route as AuthenticatedCommunityDoubtsRouteImport } from './routes/_authenticated/community.doubts'
 import { Route as AuthenticatedCommunityFeedRouteImport } from './routes/_authenticated/community.feed'
@@ -229,12 +227,6 @@ const AuthenticatedAdminUsersRoute = AuthenticatedAdminUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
-const AuthenticatedAdminWithdrawalsRoute =
-  AuthenticatedAdminWithdrawalsRouteImport.update({
-    id: '/withdrawals',
-    path: '/withdrawals',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
 const AuthenticatedBattleIndexRoute =
   AuthenticatedBattleIndexRouteImport.update({
     id: '/',
@@ -263,12 +255,6 @@ const AuthenticatedBattleMegaRoute = AuthenticatedBattleMegaRouteImport.update({
   path: '/mega',
   getParentRoute: () => AuthenticatedBattleRoute,
 } as any)
-const AuthenticatedBattleWalletRoute =
-  AuthenticatedBattleWalletRouteImport.update({
-    id: '/wallet',
-    path: '/wallet',
-    getParentRoute: () => AuthenticatedBattleRoute,
-  } as any)
 const AuthenticatedCommunityIndexRoute =
   AuthenticatedCommunityIndexRouteImport.update({
     id: '/',
@@ -413,12 +399,10 @@ export interface FileRoutesByFullPath {
   '/admin/promos': typeof AuthenticatedAdminPromosRoute
   '/admin/social': typeof AuthenticatedAdminSocialRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
-  '/admin/withdrawals': typeof AuthenticatedAdminWithdrawalsRoute
   '/battle/1v1': typeof AuthenticatedBattle1v1Route
   '/battle/history': typeof AuthenticatedBattleHistoryRoute
   '/battle/leaderboard': typeof AuthenticatedBattleLeaderboardRoute
   '/battle/mega': typeof AuthenticatedBattleMegaRoute
-  '/battle/wallet': typeof AuthenticatedBattleWalletRoute
   '/community/doubts': typeof AuthenticatedCommunityDoubtsRoute
   '/community/feed': typeof AuthenticatedCommunityFeedRoute
   '/community/groups': typeof AuthenticatedCommunityGroupsRoute
@@ -468,12 +452,10 @@ export interface FileRoutesByTo {
   '/admin/promos': typeof AuthenticatedAdminPromosRoute
   '/admin/social': typeof AuthenticatedAdminSocialRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
-  '/admin/withdrawals': typeof AuthenticatedAdminWithdrawalsRoute
   '/battle/1v1': typeof AuthenticatedBattle1v1Route
   '/battle/history': typeof AuthenticatedBattleHistoryRoute
   '/battle/leaderboard': typeof AuthenticatedBattleLeaderboardRoute
   '/battle/mega': typeof AuthenticatedBattleMegaRoute
-  '/battle/wallet': typeof AuthenticatedBattleWalletRoute
   '/community/doubts': typeof AuthenticatedCommunityDoubtsRoute
   '/community/feed': typeof AuthenticatedCommunityFeedRoute
   '/community/groups': typeof AuthenticatedCommunityGroupsRoute
@@ -528,12 +510,10 @@ export interface FileRoutesById {
   '/_authenticated/admin/promos': typeof AuthenticatedAdminPromosRoute
   '/_authenticated/admin/social': typeof AuthenticatedAdminSocialRoute
   '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
-  '/_authenticated/admin/withdrawals': typeof AuthenticatedAdminWithdrawalsRoute
   '/_authenticated/battle/1v1': typeof AuthenticatedBattle1v1Route
   '/_authenticated/battle/history': typeof AuthenticatedBattleHistoryRoute
   '/_authenticated/battle/leaderboard': typeof AuthenticatedBattleLeaderboardRoute
   '/_authenticated/battle/mega': typeof AuthenticatedBattleMegaRoute
-  '/_authenticated/battle/wallet': typeof AuthenticatedBattleWalletRoute
   '/_authenticated/community/doubts': typeof AuthenticatedCommunityDoubtsRoute
   '/_authenticated/community/feed': typeof AuthenticatedCommunityFeedRoute
   '/_authenticated/community/groups': typeof AuthenticatedCommunityGroupsRoute
@@ -588,12 +568,10 @@ export interface FileRouteTypes {
     | '/admin/promos'
     | '/admin/social'
     | '/admin/users'
-    | '/admin/withdrawals'
     | '/battle/1v1'
     | '/battle/history'
     | '/battle/leaderboard'
     | '/battle/mega'
-    | '/battle/wallet'
     | '/community/doubts'
     | '/community/feed'
     | '/community/groups'
@@ -643,12 +621,10 @@ export interface FileRouteTypes {
     | '/admin/promos'
     | '/admin/social'
     | '/admin/users'
-    | '/admin/withdrawals'
     | '/battle/1v1'
     | '/battle/history'
     | '/battle/leaderboard'
     | '/battle/mega'
-    | '/battle/wallet'
     | '/community/doubts'
     | '/community/feed'
     | '/community/groups'
@@ -702,12 +678,10 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/promos'
     | '/_authenticated/admin/social'
     | '/_authenticated/admin/users'
-    | '/_authenticated/admin/withdrawals'
     | '/_authenticated/battle/1v1'
     | '/_authenticated/battle/history'
     | '/_authenticated/battle/leaderboard'
     | '/_authenticated/battle/mega'
-    | '/_authenticated/battle/wallet'
     | '/_authenticated/community/doubts'
     | '/_authenticated/community/feed'
     | '/_authenticated/community/groups'
@@ -963,13 +937,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminUsersRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
-    '/_authenticated/admin/withdrawals': {
-      id: '/_authenticated/admin/withdrawals'
-      path: '/withdrawals'
-      fullPath: '/admin/withdrawals'
-      preLoaderRoute: typeof AuthenticatedAdminWithdrawalsRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
     '/_authenticated/battle/': {
       id: '/_authenticated/battle/'
       path: '/'
@@ -1003,13 +970,6 @@ declare module '@tanstack/react-router' {
       path: '/mega'
       fullPath: '/battle/mega'
       preLoaderRoute: typeof AuthenticatedBattleMegaRouteImport
-      parentRoute: typeof AuthenticatedBattleRoute
-    }
-    '/_authenticated/battle/wallet': {
-      id: '/_authenticated/battle/wallet'
-      path: '/wallet'
-      fullPath: '/battle/wallet'
-      preLoaderRoute: typeof AuthenticatedBattleWalletRouteImport
       parentRoute: typeof AuthenticatedBattleRoute
     }
     '/_authenticated/community/': {
@@ -1158,7 +1118,6 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminPromosRoute: typeof AuthenticatedAdminPromosRoute
   AuthenticatedAdminSocialRoute: typeof AuthenticatedAdminSocialRoute
   AuthenticatedAdminUsersRoute: typeof AuthenticatedAdminUsersRoute
-  AuthenticatedAdminWithdrawalsRoute: typeof AuthenticatedAdminWithdrawalsRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
 }
 
@@ -1172,7 +1131,6 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminPromosRoute: AuthenticatedAdminPromosRoute,
   AuthenticatedAdminSocialRoute: AuthenticatedAdminSocialRoute,
   AuthenticatedAdminUsersRoute: AuthenticatedAdminUsersRoute,
-  AuthenticatedAdminWithdrawalsRoute: AuthenticatedAdminWithdrawalsRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
 }
 
@@ -1184,7 +1142,6 @@ interface AuthenticatedBattleRouteChildren {
   AuthenticatedBattleHistoryRoute: typeof AuthenticatedBattleHistoryRoute
   AuthenticatedBattleLeaderboardRoute: typeof AuthenticatedBattleLeaderboardRoute
   AuthenticatedBattleMegaRoute: typeof AuthenticatedBattleMegaRoute
-  AuthenticatedBattleWalletRoute: typeof AuthenticatedBattleWalletRoute
   AuthenticatedBattleIndexRoute: typeof AuthenticatedBattleIndexRoute
   AuthenticatedBattlePlaySessionIdRoute: typeof AuthenticatedBattlePlaySessionIdRoute
 }
@@ -1194,7 +1151,6 @@ const AuthenticatedBattleRouteChildren: AuthenticatedBattleRouteChildren = {
   AuthenticatedBattleHistoryRoute: AuthenticatedBattleHistoryRoute,
   AuthenticatedBattleLeaderboardRoute: AuthenticatedBattleLeaderboardRoute,
   AuthenticatedBattleMegaRoute: AuthenticatedBattleMegaRoute,
-  AuthenticatedBattleWalletRoute: AuthenticatedBattleWalletRoute,
   AuthenticatedBattleIndexRoute: AuthenticatedBattleIndexRoute,
   AuthenticatedBattlePlaySessionIdRoute: AuthenticatedBattlePlaySessionIdRoute,
 }

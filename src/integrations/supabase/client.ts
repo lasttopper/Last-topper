@@ -26,28 +26,23 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
   };
 }
 
+const DEFAULT_SUPABASE_URL = 'https://hcqlwtmeylnhqernwljj.supabase.co';
+const DEFAULT_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjcWx3dG1leWxuaHFlcm53bGpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ4NTg4NjAsImV4cCI6MjEwMDQzNDg2MH0.oiLSjBMieHYa1joPXv7AIQhy9USBDdvgu6dgfeYQHVc';
+
 function createSupabaseClient() {
   const SUPABASE_URL =
     (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) ||
     process.env.VITE_SUPABASE_URL ||
-    process.env.SUPABASE_URL;
+    process.env.SUPABASE_URL ||
+    DEFAULT_SUPABASE_URL;
 
   const SUPABASE_KEY =
     (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_SUPABASE_ANON_KEY || import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY)) ||
     process.env.VITE_SUPABASE_ANON_KEY ||
     process.env.SUPABASE_ANON_KEY ||
     process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-    process.env.SUPABASE_PUBLISHABLE_KEY;
-
-  if (!SUPABASE_URL || !SUPABASE_KEY) {
-    const missing = [
-      ...(!SUPABASE_URL ? ['VITE_SUPABASE_URL or SUPABASE_URL'] : []),
-      ...(!SUPABASE_KEY ? ['VITE_SUPABASE_ANON_KEY or SUPABASE_ANON_KEY'] : []),
-    ];
-    const message = `Missing Supabase environment variable(s): ${missing.join(', ')}. Please configure them in your .env file.`;
-    console.error(`[Supabase] ${message}`);
-    throw new Error(message);
-  }
+    process.env.SUPABASE_PUBLISHABLE_KEY ||
+    DEFAULT_SUPABASE_KEY;
 
   return createClient<Database>(SUPABASE_URL, SUPABASE_KEY, {
     global: {

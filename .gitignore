@@ -37,3 +37,9 @@ dist-ssr
 *.sw?
 .vercel
 .env*
+
+.npm
+.cache
+.tanstack
+.local
+
