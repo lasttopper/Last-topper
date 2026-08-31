@@ -18,7 +18,7 @@ import {
 import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
-import logoAsset from "@/assets/site-logo.jpg.asset.json";
+import logoAsset from "@/assets/logo.png";
 import { SocialLinksDropdown } from "@/components/SocialLinks";
 
 type NavItem = { to: string; label: string; icon: ReactNode; params?: Record<string, string> };
@@ -106,7 +106,7 @@ export function AppShell({
           </button>
           <div className="flex min-w-0 items-center gap-2">
             <div className="grid h-9 w-9 place-items-center overflow-hidden rounded-xl shadow-lg shadow-primary/20 ring-1 ring-border">
-              <img src={logoAsset.url} alt="Last Topper" className="h-full w-full object-cover" />
+              <img src={logoAsset} alt="Last Topper" className="h-full w-full object-cover" />
             </div>
             <div className="min-w-0">
               <div className="truncate text-sm font-semibold leading-tight">Last Topper</div>

@@ -1,4 +1,4 @@
-import coin from "@/assets/topper-coin.jpg.asset.json";
+import logoPng from "@/assets/logo.png";
 
 export function TopperCoin({
   size = 16,
@@ -9,7 +9,7 @@ export function TopperCoin({
 }) {
   return (
     <img
-      src={coin.url}
+      src={logoPng}
       alt="Topper Coin"
       width={size}
       height={size}
