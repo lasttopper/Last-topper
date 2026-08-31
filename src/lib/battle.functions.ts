@@ -31,47 +31,15 @@ async function callGemini(prompt: string, count: number, model = "google/gemini-
 }
 
 
-/* --------------------------------- Wallet -------------------------------- */
-
-import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/integrations/supabase/types";
-type AuthedSupabase = SupabaseClient<Database>;
-
-async function addTxn(
-  supabase: AuthedSupabase,
-  userId: string,
-  type: "credit" | "debit",
-  category: string,
-  amount: number,
-  note: string,
-  referenceId?: string,
-) {
-  const { data: u } = await supabase.from("users").select("balance").eq("id", userId).maybeSingle();
-  const cur = Number(u?.balance ?? 0);
-  const next = type === "credit" ? cur + amount : cur - amount;
-  if (next < 0) throw new Error("Insufficient balance");
-  await supabase.from("users").update({ balance: next }).eq("id", userId);
-  await supabase.from("wallet_transactions").insert({
-    user_id: userId, type, category, amount, balance_after: next, note, reference_id: referenceId ?? null,
-  });
-  return next;
-}
+/* --------------------------------- Wallet Stub -------------------------------- */
 
 export const getWallet = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { data: u } = await context.supabase
-      .from("users").select("balance, mega_credits").eq("id", context.userId).maybeSingle();
-    const { data: txns } = await context.supabase
-      .from("wallet_transactions")
-      .select("id, type, category, amount, balance_after, note, created_at")
-      .eq("user_id", context.userId)
-      .order("created_at", { ascending: false })
-      .limit(50);
+  .handler(async () => {
     return {
-      balance: Number(u?.balance ?? 0),
-      mega_credits: Number(u?.mega_credits ?? 0),
-      transactions: txns ?? [],
+      balance: 0,
+      mega_credits: 0,
+      transactions: [],
     };
   });
 
@@ -230,7 +198,7 @@ export const getQuickLeaderboard = createServerFn({ method: "GET" })
       : { data: [] as Array<{ id: string; full_name: string | null; avatar_url: string | null }> };
     const map = new Map((users ?? []).map((u) => [u.id, u] as const));
 
-    // Showcase-only demo players (display in leaderboard/history; cannot join mega battles)
+    // Showcase-only demo players
     const { data: demo } = await (supabaseAdmin as any)
       .from("demo_players")
       .select("id, full_name, avatar_url, xp, score, correct_count, time_taken_seconds");
@@ -311,7 +279,7 @@ export const getUpcomingMegaTest = createServerFn({ method: "GET" })
           profession,
           scheduled_start: start.toISOString(),
           scheduled_end: end.toISOString(),
-          status: "scheduled", entry_fee: 10, min_participants: 50, question_count: 180,
+          status: "scheduled", entry_fee: 0, min_participants: 1, question_count: 180,
         })
         .select("id, profession, scheduled_start, scheduled_end, status, entry_fee, min_participants, question_count, created_at").single();
       if (error) throw error;
@@ -332,7 +300,7 @@ export const joinMegaTest = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ mega_test_id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     const { data: test } = await context.supabase
-      .from("mega_tests").select("id, entry_fee, status")
+      .from("mega_tests").select("id, status")
       .eq("id", data.mega_test_id).maybeSingle();
     if (!test) throw new Error("Test not found");
     if (test.status === "completed" || test.status === "cancelled") throw new Error("Registration closed");
@@ -340,32 +308,7 @@ export const joinMegaTest = createServerFn({ method: "POST" })
       .from("mega_test_entries").select("id, paid")
       .eq("mega_test_id", data.mega_test_id).eq("user_id", context.userId).maybeSingle();
     if (existing?.paid) return { already: true as const };
-    const fee = Number(test.entry_fee);
 
-    // Spend Mega-Test-only credits (from referrals) first, then wallet balance.
-    const { data: u } = await context.supabase
-      .from("users").select("balance, mega_credits").eq("id", context.userId).maybeSingle();
-    const megaCr = Number(u?.mega_credits ?? 0);
-    const bal = Number(u?.balance ?? 0);
-    const useFromCredits = Math.min(megaCr, fee);
-    const useFromBalance = fee - useFromCredits;
-    if (useFromBalance > bal) throw new Error("Insufficient balance");
-
-    if (useFromCredits > 0) {
-      await context.supabase
-        .from("users").update({ mega_credits: megaCr - useFromCredits }).eq("id", context.userId);
-      await context.supabase.from("wallet_transactions").insert({
-        user_id: context.userId, type: "debit", category: "entry_fee",
-        amount: useFromCredits, balance_after: bal,
-        note: `Sunday Mega Test entry (referral credits)`, reference_id: data.mega_test_id,
-      });
-    }
-    if (useFromBalance > 0) {
-      await addTxn(
-        context.supabase, context.userId, "debit", "entry_fee",
-        useFromBalance, "Sunday Mega Test entry", data.mega_test_id,
-      );
-    }
     if (existing) {
       await context.supabase.from("mega_test_entries").update({ paid: true }).eq("id", existing.id);
     } else {
@@ -392,14 +335,11 @@ export const startMegaSession = createServerFn({ method: "POST" })
       .eq("mega_test_id", data.mega_test_id).eq("user_id", context.userId).maybeSingle();
     if (!entry?.paid) throw new Error("Join first to play");
     if (entry.session_id) return { id: entry.session_id as string };
-    // Question papers are never exposed to the client role — read them with
-    // the admin client only after the start-time gate above has passed.
+
     const { supabaseAdmin: adminForQuestions } = await import("@/integrations/supabase/client.server");
     const { data: paper } = await adminForQuestions
       .from("mega_tests").select("questions").eq("id", data.mega_test_id).maybeSingle();
     let questions = (paper?.questions as QuizQuestion[] | null) ?? null;
-    // If not yet generated for this test, look for a shared set generated for the same time slot
-    // (one set is shared across all professions for fairness).
     if (!questions || questions.length === 0) {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { data: peer } = await supabaseAdmin
@@ -434,93 +374,18 @@ export const startMegaSession = createServerFn({ method: "POST" })
   });
 
 
-/* ----------------------------- Withdrawals ------------------------------- */
-
-const withdrawSchema = z.object({
-  amount: z.number().positive(),
-  method: z.enum(["upi", "bank"]),
-  upi_id: z.string().optional(),
-  account_name: z.string().optional(),
-  account_number: z.string().optional(),
-  ifsc: z.string().optional(),
-  bank_name: z.string().optional(),
-});
+/* ----------------------------- Withdrawals Stubs ------------------------------- */
 
 export const requestWithdrawal = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => withdrawSchema.parse(d))
-  .handler(async ({ data, context }) => {
-    const { data: u } = await context.supabase
-      .from("users").select("balance, full_name, email").eq("id", context.userId).maybeSingle();
-    const bal = Number(u?.balance ?? 0);
-    if (data.amount > bal) throw new Error("Insufficient balance");
-    await addTxn(context.supabase, context.userId, "debit", "withdrawal", data.amount, "Withdrawal requested");
-    const { data: row, error } = await context.supabase
-      .from("withdrawal_requests")
-      .insert({
-        user_id: context.userId, amount: data.amount, method: data.method,
-        upi_id: data.upi_id ?? null, account_name: data.account_name ?? null,
-        account_number: data.account_number ?? null, ifsc: data.ifsc ?? null,
-        bank_name: data.bank_name ?? null,
-      })
-      .select("id, process_after, short_code").single();
-    if (error) throw error;
-    try {
-      const { safeFileName, sendTelegramDocument, buildReport, fmtIST } = await import("@/lib/telegram-alert");
-      const who = u?.full_name ?? u?.email ?? context.userId;
-      const details: [string, unknown][] =
-        data.method === "upi"
-          ? [["UPI ID", data.upi_id]]
-          : [
-              ["Bank", data.bank_name],
-              ["Account name", data.account_name],
-              ["Account number", data.account_number],
-              ["IFSC", (data.ifsc ?? "").toUpperCase()],
-            ];
-      const body = buildReport(
-        "Withdrawal request",
-        [
-          ["Request ID", `#${row.short_code}`],
-          ["User", who],
-          ["Email", u?.email],
-          ["Amount", `${data.amount} TC (₹${data.amount})`],
-          ["Method", data.method.toUpperCase()],
-          ...details,
-          ["Requested at", fmtIST(new Date())],
-        ],
-        [
-          "Reply with:",
-          `/approve id=${row.short_code}`,
-          `/reject id=${row.short_code}   (auto-refunds wallet)`,
-        ],
-      );
-      const fileName = safeFileName([String(who), `withdrawal_${row.short_code}`], "txt");
-      await sendTelegramDocument(
-        fileName,
-        body,
-        [
-          `💸 <b>Withdrawal #${row.short_code}</b>`,
-          `👤 ${who}`,
-          `💰 ₹${data.amount} • ${data.method.toUpperCase()}`,
-          "",
-          `<code>/approve id=${row.short_code}</code>`,
-          `<code>/reject id=${row.short_code}</code>`,
-        ].join("\n"),
-      );
-    } catch { /* non-fatal */ }
-
-    return { id: row.id, process_after: row.process_after };
+  .handler(async () => {
+    throw new Error("Withdrawals are disabled.");
   });
 
 export const getWithdrawals = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { data } = await context.supabase
-      .from("withdrawal_requests")
-      .select("id, amount, method, status, process_after, processed_at, created_at")
-      .eq("user_id", context.userId)
-      .order("created_at", { ascending: false }).limit(20);
-    return data ?? [];
+  .handler(async () => {
+    return [];
   });
 
 export const getBattleHistory = createServerFn({ method: "GET" })

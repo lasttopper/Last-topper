@@ -1,6 +1,6 @@
 /**
  * Razorpay Checkout loader + opener.
- * Client-side helper used by Pricing & Wallet pages.
+ * Client-side helper used by Pricing page.
  */
 import { createRazorpayOrder, verifyRazorpayPayment } from "@/lib/razorpay.functions";
 
@@ -42,23 +42,15 @@ function loadCheckout(): Promise<void> {
 export type PayArgs =
   | { purpose: "pro"; name?: string | null; email?: string | null; description?: string; voucher_code?: string; promo_code?: string }
   | { purpose: "pro_yearly"; name?: string | null; email?: string | null; description?: string; voucher_code?: string; promo_code?: string }
-  | { purpose: "pro_weekly"; name?: string | null; email?: string | null; description?: string; voucher_code?: string; promo_code?: string }
-  | { purpose: "wallet_topup"; amount_inr: number; name?: string | null; email?: string | null; description?: string };
+  | { purpose: "pro_weekly"; name?: string | null; email?: string | null; description?: string; voucher_code?: string; promo_code?: string };
 
 export async function payWithRazorpay(args: PayArgs): Promise<{
-  purpose: "pro" | "pro_yearly" | "pro_weekly" | "wallet_topup";
-  balance?: number;
+  purpose: "pro" | "pro_yearly" | "pro_weekly";
 }> {
   await loadCheckout();
-  const voucherCode = args.purpose === "wallet_topup" ? undefined : args.voucher_code;
-  const promoCode = args.purpose === "wallet_topup" ? undefined : args.promo_code;
   const order = await createRazorpayOrder({
-    data:
-      args.purpose === "wallet_topup"
-        ? { purpose: "wallet_topup", amount_inr: args.amount_inr }
-        : { purpose: args.purpose, voucher_code: voucherCode, promo_code: promoCode },
+    data: { purpose: args.purpose, voucher_code: args.voucher_code, promo_code: args.promo_code },
   });
-
 
   return new Promise((resolve, reject) => {
     const rzp = new window.Razorpay!({
@@ -67,7 +59,7 @@ export async function payWithRazorpay(args: PayArgs): Promise<{
       amount: order.amount,
       currency: order.currency,
       name: "Last Topper",
-      description: args.description ?? (args.purpose === "wallet_topup" ? "Wallet top-up" : args.purpose === "pro_yearly" ? "Pro yearly subscription" : args.purpose === "pro_weekly" ? "Pro weekly subscription" : "Pro monthly subscription"),
+      description: args.description ?? (args.purpose === "pro_yearly" ? "Pro yearly subscription" : args.purpose === "pro_weekly" ? "Pro weekly subscription" : "Pro monthly subscription"),
       prefill: { name: args.name ?? undefined, email: args.email ?? undefined },
       theme: { color: "#4f46e5" },
       handler: async (r) => {
@@ -78,9 +70,8 @@ export async function payWithRazorpay(args: PayArgs): Promise<{
               razorpay_payment_id: r.razorpay_payment_id,
               razorpay_signature: r.razorpay_signature,
               purpose: args.purpose,
-              amount_inr: args.purpose === "wallet_topup" ? args.amount_inr : undefined,
-              voucher_code: voucherCode,
-              promo_code: promoCode,
+              voucher_code: args.voucher_code,
+              promo_code: args.promo_code,
             },
           });
           resolve(res);

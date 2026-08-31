@@ -201,7 +201,7 @@ function HomePage() {
       {/* Practice */}
       <SectionHeading title="Practice" hint="Pick a mode to start" />
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" data-tour="practice">
-        <NavTile icon={<CalendarCheck className="h-5 w-5" />} title="Daily challenge" body="10 questions · earn TC" onClick={() => navigate({ to: "/daily" })} />
+        <NavTile icon={<CalendarCheck className="h-5 w-5" />} title="Daily challenge" body="10 questions · test your speed" onClick={() => navigate({ to: "/daily" })} />
         <NavTile icon={<Repeat2 className="h-5 w-5" />} title="Review queue" body="Spaced repetition" onClick={() => navigate({ to: "/review" })} />
         <NavTile icon={<ScrollText className="h-5 w-5" />} title="Past year papers" body="NEET & JEE PYQs" onClick={() => navigate({ to: "/pyq" })} />
         <NavTile icon={<BookOpen className="h-5 w-5" />} title="Learning" body="Practice by chapter" onClick={() => navigate({ to: "/learning" })} />

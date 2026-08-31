@@ -1,24 +1,20 @@
-// Server-only helper (safe to import from *.functions.ts because it only
-// reads process.env inside the function body, never at module scope).
+// Server-only helper for Telegram alerts using direct Telegram Bot API.
 
 function creds() {
   const chat = process.env.REPORT_TELEGRAM_CHAT_ID;
-  const gwKey = process.env.LOVABLE_API_KEY;
-  const tgKey = (process.env.TELEGRAM_API_KEY_1 ?? process.env.TELEGRAM_API_KEY);
-  if (!chat || !gwKey || !tgKey) return null;
-  return { chat, gwKey, tgKey };
+  const tgKey = process.env.TELEGRAM_API_KEY_1 ?? process.env.TELEGRAM_API_KEY;
+  if (!chat || !tgKey) return null;
+  return { chat, tgKey };
 }
 
 export async function sendTelegramAlert(text: string): Promise<void> {
   try {
     const c = creds();
     if (!c) return;
-    await fetch("https://connector-gateway.lovable.dev/telegram/sendMessage", {
+    await fetch(`https://api.telegram.org/bot${c.tgKey}/sendMessage`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${c.gwKey}`,
-        "X-Connection-Api-Key": c.tgKey,
       },
       body: JSON.stringify({ chat_id: c.chat, text, parse_mode: "HTML" }),
     });
@@ -111,12 +107,8 @@ export async function sendTelegramDocument(
     const type = fileName.endsWith(".json") ? "application/json" : "text/plain";
     form.append("document", new Blob([content], { type }), fileName);
 
-    const res = await fetch("https://connector-gateway.lovable.dev/telegram/sendDocument", {
+    const res = await fetch(`https://api.telegram.org/bot${c.tgKey}/sendDocument`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${c.gwKey}`,
-        "X-Connection-Api-Key": c.tgKey,
-      },
       body: form,
     });
     if (!res.ok) {

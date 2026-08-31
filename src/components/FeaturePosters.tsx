@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Swords, Sparkles, BookMarked, Wallet, Users, Trophy } from "lucide-react";
+import { Swords, Sparkles, BookMarked, Users, Trophy } from "lucide-react";
 
 type Poster = {
   to: string;
@@ -22,8 +22,8 @@ const POSTERS: Poster[] = [
   {
     to: "/battle/mega",
     eyebrow: "Every Sunday",
-    title: "Mega Test prize pool",
-    body: "Join the weekly contest and win Topper Coins.",
+    title: "Mega Test rewards",
+    body: "Join the weekly contest and win Pro plan access.",
     icon: <Trophy className="h-5 w-5" />,
     tint: "from-amber-500/15 to-orange-500/10",
   },
@@ -42,14 +42,6 @@ const POSTERS: Poster[] = [
     body: "2× XP, step-by-step solutions and unlimited questions.",
     icon: <Sparkles className="h-5 w-5" />,
     tint: "from-violet-500/15 to-sky-500/10",
-  },
-  {
-    to: "/battle/wallet",
-    eyebrow: "Wallet",
-    title: "Earn & withdraw TC",
-    body: "Refer friends, win contests, cash out your coins.",
-    icon: <Wallet className="h-5 w-5" />,
-    tint: "from-cyan-500/15 to-blue-500/10",
   },
   {
     to: "/community",

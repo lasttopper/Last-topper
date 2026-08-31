@@ -7,17 +7,16 @@ import confetti from "canvas-confetti";
 import { getDailyChallenge, submitDailyChallenge } from "@/lib/daily.functions";
 import { Button } from "@/components/ui/button";
 import { Latex } from "@/components/Latex";
-import { ChevronLeft, CalendarCheck, Loader2, Trophy, Lock } from "lucide-react";
-import { TopperCoin } from "@/components/TopperCoin";
+import { ChevronLeft, CalendarCheck, Loader2, Trophy, Lock, Zap } from "lucide-react";
 import { failMessage } from "@/lib/friendly-error";
 
 export const Route = createFileRoute("/_authenticated/daily")({
   head: () => ({
     meta: [
       { title: "Daily Challenge — Last Topper" },
-      { name: "description", content: "One curated 10-question NCERT set every day. Earn Topper Coins and keep your streak alive." },
+      { name: "description", content: "One curated 10-question NCERT set every day. Build your mastery and keep your streak alive." },
       { property: "og:title", content: "Daily Challenge — Last Topper" },
-      { property: "og:description", content: "10 fresh NCERT questions daily with coin rewards." },
+      { property: "og:description", content: "10 fresh NCERT questions daily with XP rewards." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -32,7 +31,7 @@ function DailyPage() {
   const qc = useQueryClient();
   const [answers, setAnswers] = useState<Record<string, Letter>>({});
   const [idx, setIdx] = useState(0);
-  const [result, setResult] = useState<{ correct: number; total: number; reward: number; xp_gained?: number } | null>(null);
+  const [result, setResult] = useState<{ correct: number; total: number; xp_gained?: number } | null>(null);
 
   const challenge = useQuery({
     queryKey: ["daily-challenge"],
@@ -44,10 +43,9 @@ function DailyPage() {
     mutationFn: () =>
       submitDailyChallenge({ data: { challenge_id: challenge.data!.id, answers } }),
     onSuccess: (r) => {
-      setResult({ correct: r.correct, total: r.total, reward: r.reward, xp_gained: "xp_gained" in r ? r.xp_gained : 0 });
+      setResult({ correct: r.correct, total: r.total, xp_gained: "xp_gained" in r ? r.xp_gained : 0 });
       if (!r.already) confetti({ particleCount: 140, spread: 90, origin: { y: 0.6 } });
       qc.invalidateQueries({ queryKey: ["my-profile"] });
-      qc.invalidateQueries({ queryKey: ["wallet"] });
     },
     onError: (e: Error) => toast.error(failMessage(e)),
   });
@@ -110,15 +108,9 @@ function DailyPage() {
             <h2 className="mt-3 text-lg font-semibold">
               {result ? `${result.correct} / ${result.total} correct` : "Already completed today"}
             </h2>
-            {result ? (
-              <p className="mt-1 flex items-center justify-center gap-1 text-sm text-muted-foreground">
-                Reward: <TopperCoin className="h-4 w-4" /> <b>{result.reward} TC</b> added to your wallet
-              </p>
-            ) : (
-              <p className="mt-1 text-sm text-muted-foreground">
-                You scored {challenge.data.correct_count} and earned {challenge.data.reward_tc} TC. Come back tomorrow!
-              </p>
-            )}
+            <p className="mt-1 flex items-center justify-center gap-1 text-sm text-muted-foreground">
+              <Zap className="h-4 w-4 text-amber-500" /> {result ? `Streak & XP boost credited!` : `You scored ${challenge.data.correct_count} correct. Come back tomorrow!`}
+            </p>
             <XpProgress className="mt-4 text-left" gained={result?.xp_gained} />
             <div className="mt-4 flex justify-center gap-2">
               <Button variant="outline" onClick={() => nav({ to: "/review" })}>Review mistakes</Button>

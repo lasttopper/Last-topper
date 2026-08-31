@@ -1,14 +1,11 @@
 /**
  * Multi-provider AI router with automatic key rotation.
- *
- * Order of attempts (each key is tried until one succeeds):
- *   1. GEMINI_API_KEY_1 / _2 / _3   -> Google Generative Language (OpenAI-compatible endpoint)
- *   2. OPENROUTER_API_KEY_1 / _2    -> OpenRouter
- *   3. LOVABLE_API_KEY              -> Lovable AI Gateway (final safety net)
- *
- * A provider is skipped and the next key used when it returns
- * 401 / 402 / 403 / 429 (quota, billing or auth exhausted) or a 5xx.
- * All request/response shapes are OpenAI chat-completions compatible.
+ * Supports Gemini, OpenRouter, xAI Grok, and Custom/OmniRoute OpenAI-compatible endpoints.
+ * Order of attempts:
+ *   0. Custom API / OmniRoute (Base URL & Model if configured in Admin)
+ *   1. GEMINI_API_KEY_1 / _2 / _3   -> Google Generative Language (e.g. gemini-3.6-flash)
+ *   2. OPENROUTER_API_KEY_1 / _2    -> OpenRouter Catalog
+ *   3. XAI_API_KEY                  -> xAI Grok 4 Fast
  */
 
 export type ChatBody = {
@@ -27,15 +24,31 @@ type Provider = {
   model: (m: string) => string;
 };
 
-/** Google's native API uses bare model ids. */
-function toGeminiModel(model: string): string {
-  const bare = model.replace(/^google\//, "");
-  if (/lite/i.test(bare)) return "gemini-flash-lite-latest";
-  if (/pro/i.test(bare)) return "gemini-pro-latest";
-  return "gemini-flash-latest";
+function getConfig() {
+  if (typeof process !== "undefined" && process.env) {
+    try {
+      // Dynamic import in Node server environment
+      const { getAppConfig } = require("@/lib/app-config.server");
+      return getAppConfig();
+    } catch {
+      // Fallback to process.env
+    }
+  }
+  return {};
 }
 
-/** OpenRouter needs an id that actually exists in its catalog. */
+/** Google's native API model mapping. Respects custom configured default model (e.g. gemini-3.6-flash). */
+function toGeminiModel(requestedModel: string, configuredDefault?: string): string {
+  const bare = requestedModel.replace(/^google\//, "");
+  if (/lite/i.test(bare)) return "gemini-flash-lite-latest";
+  if (/pro/i.test(bare)) return "gemini-pro-latest";
+  if (configuredDefault && configuredDefault.trim()) {
+    return configuredDefault.trim().replace(/^google\//, "");
+  }
+  return "gemini-3.6-flash";
+}
+
+/** OpenRouter catalog model mapping. */
 function toOpenRouterModel(model: string): string {
   const bare = model.replace(/^google\//, "");
   if (/lite/i.test(bare)) return "google/gemini-2.5-flash-lite";
@@ -44,77 +57,74 @@ function toOpenRouterModel(model: string): string {
 }
 
 /** xAI Grok model ids. */
-function toGrokModel(model: string): string {
-  const bare = model.replace(/^google\//, "");
-  if (/lite/i.test(bare)) return "grok-4-fast-non-reasoning";
+function toGrokModel(): string {
   return "grok-4-fast-non-reasoning";
 }
 
 function buildProviders(): Provider[] {
+  const cfg = getConfig();
   const list: Provider[] = [];
 
-  // 0. Self-hosted OmniRoute (fastest / cheapest — tried first).
-  const omniBase = process.env.OMNIROUTE_BASE_URL?.trim().replace(/\/+$/, "");
+  // 0. Custom API / OmniRoute (Self-hosted or custom OpenAI-compatible endpoint)
+  const omniBase = (cfg.omniroute_base_url || process.env.OMNIROUTE_BASE_URL || "").trim().replace(/\/+$/, "");
   if (omniBase) {
-    const omniModel = (m: string) => process.env.OMNIROUTE_MODEL?.trim() || m;
-    const omniKeys = ["OMNIROUTE_API_KEY_1", "OMNIROUTE_API_KEY_2", "OMNIROUTE_API_KEY_3"]
-      .map((n) => ({ name: n, key: process.env[n]?.trim() }))
-      .filter((x) => !!x.key);
-    if (omniKeys.length === 0) omniKeys.push({ name: "OMNIROUTE", key: "" });
-    for (const { name, key } of omniKeys) {
-      list.push({
-        label: name,
-        url: `${omniBase}/chat/completions`,
-        headers: {
-          "Content-Type": "application/json",
-          ...(key ? { Authorization: `Bearer ${key}` } : {}),
-        },
-        model: omniModel,
-      });
-    }
-  }
-
-
-  for (const name of ["GEMINI_API_KEY_1", "GEMINI_API_KEY_2", "GEMINI_API_KEY_3"]) {
-    const key = process.env[name]?.trim();
-    if (!key) continue;
+    const omniModel = (m: string) => cfg.omniroute_model || process.env.OMNIROUTE_MODEL || m;
+    const key = cfg.omniroute_api_key_1 || process.env.OMNIROUTE_API_KEY_1 || "";
     list.push({
-      label: name,
-      url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-      model: toGeminiModel,
+      label: "Custom_API / OmniRoute",
+      url: `${omniBase}/chat/completions`,
+      headers: {
+        "Content-Type": "application/json",
+        ...(key ? { Authorization: `Bearer ${key}` } : {}),
+      },
+      model: omniModel,
     });
   }
 
-  for (const name of ["OPENROUTER_API_KEY_1", "OPENROUTER_API_KEY_2"]) {
-    const key = process.env[name]?.trim();
+  // 1. Google Gemini Keys & Model (e.g. gemini-3.6-flash)
+  const configuredGeminiModel = cfg.gemini_model || process.env.GEMINI_MODEL || "gemini-3.6-flash";
+  const geminiKeys = [
+    { name: "GEMINI_API_KEY_1", key: cfg.gemini_api_key_1 || process.env.GEMINI_API_KEY_1 },
+    { name: "GEMINI_API_KEY_2", key: cfg.gemini_api_key_2 || process.env.GEMINI_API_KEY_2 },
+    { name: "GEMINI_API_KEY_3", key: cfg.gemini_api_key_3 || process.env.GEMINI_API_KEY_3 },
+  ];
+
+  for (const item of geminiKeys) {
+    const key = item.key?.trim();
     if (!key) continue;
     list.push({
-      label: name,
+      label: item.name,
+      url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+      model: (reqM) => toGeminiModel(reqM, configuredGeminiModel),
+    });
+  }
+
+  // 2. OpenRouter Keys
+  const openRouterKeys = [
+    { name: "OPENROUTER_API_KEY_1", key: cfg.openrouter_api_key_1 || process.env.OPENROUTER_API_KEY_1 },
+    { name: "OPENROUTER_API_KEY_2", key: cfg.openrouter_api_key_2 || process.env.OPENROUTER_API_KEY_2 },
+  ];
+
+  for (const item of openRouterKeys) {
+    const key = item.key?.trim();
+    if (!key) continue;
+    list.push({
+      label: item.name,
       url: "https://openrouter.ai/api/v1/chat/completions",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
       model: toOpenRouterModel,
     });
   }
 
-  const grok = process.env.XAI_API_KEY?.trim();
+  // 3. xAI Grok Key
+  const grok = (cfg.xai_api_key || process.env.XAI_API_KEY || "").trim();
   if (grok) {
     list.push({
       label: "XAI_API_KEY",
       url: "https://api.x.ai/v1/chat/completions",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${grok}` },
       model: toGrokModel,
-    });
-  }
-
-
-  const lov = process.env.LOVABLE_API_KEY?.trim();
-  if (lov) {
-    list.push({
-      label: "LOVABLE_API_KEY",
-      url: "https://ai.gateway.lovable.dev/v1/chat/completions",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${lov}` },
-      model: (m) => m,
     });
   }
 
@@ -144,9 +154,9 @@ export class AiUnavailableError extends Error {
  */
 export async function aiChat(body: ChatBody): Promise<any> {
   const providers = buildProviders();
-  if (providers.length === 0) throw new AiUnavailableError("No AI provider keys configured", 500);
+  if (providers.length === 0) throw new AiUnavailableError("No AI provider keys configured in Admin Panel or .env", 500);
 
-  const requested = body.model ?? "google/gemini-2.5-flash";
+  const requested = body.model ?? "google/gemini-3.6-flash";
   let lastStatus = 503;
   let lastText = "AI unavailable";
 
@@ -157,8 +167,6 @@ export async function aiChat(body: ChatBody): Promise<any> {
           method: "POST",
           headers: p.headers,
           body: JSON.stringify({ ...body, stream: false, model: p.model(requested) }),
-          // Never let one stalled provider hold the whole request hostage —
-          // time out and rotate to the next key instead.
           signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         });
 
@@ -170,10 +178,10 @@ export async function aiChat(body: ChatBody): Promise<any> {
 
         if (resp.status === 429 && attempt === 0) {
           await new Promise((r) => setTimeout(r, 250));
-          continue; // one quick retry before rotating
+          continue;
         }
-        if (shouldRotate(resp.status)) break; // next key
-        break; // non-retryable (400 etc.) -> still try next provider
+        if (shouldRotate(resp.status)) break;
+        break;
       } catch (e) {
         lastText = e instanceof Error ? e.message : String(e);
         console.error(`[ai-router] ${p.label} network error: ${lastText}`);
@@ -192,14 +200,17 @@ export async function aiChatText(body: ChatBody): Promise<string> {
 }
 
 /**
- * Diagram generation runs on OpenRouter only (dedicated keys), so it keeps
- * working even when the shared Gemini/OmniRoute quota is exhausted.
- * Falls back to the normal router if no OpenRouter key is configured.
+ * OpenRouter dedicated fallback.
  */
 export async function openRouterChat(body: ChatBody): Promise<any> {
-  const keys = ["OPENROUTER_API_KEY_1", "OPENROUTER_API_KEY_2"]
-    .map((n) => process.env[n]?.trim())
+  const cfg = getConfig();
+  const keys = [
+    cfg.openrouter_api_key_1 || process.env.OPENROUTER_API_KEY_1,
+    cfg.openrouter_api_key_2 || process.env.OPENROUTER_API_KEY_2,
+  ]
+    .map((n) => n?.trim())
     .filter(Boolean) as string[];
+
   if (keys.length === 0) return aiChat(body);
 
   const model = toOpenRouterModel(body.model ?? "google/gemini-2.5-flash");
@@ -216,10 +227,10 @@ export async function openRouterChat(body: ChatBody): Promise<any> {
       if (resp.ok) return await resp.json();
       lastStatus = resp.status;
       lastText = await resp.text().catch(() => "");
-      console.error(`[ai-router] openrouter(diagram) -> ${resp.status} ${lastText.slice(0, 200)}`);
+      console.error(`[ai-router] openrouter -> ${resp.status} ${lastText.slice(0, 200)}`);
     } catch (e) {
       lastText = e instanceof Error ? e.message : String(e);
-      console.error(`[ai-router] openrouter(diagram) network error: ${lastText}`);
+      console.error(`[ai-router] openrouter network error: ${lastText}`);
     }
   }
   throw new AiUnavailableError(`Diagram provider failed (last ${lastStatus})`, lastStatus);

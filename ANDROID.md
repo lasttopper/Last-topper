@@ -1,9 +1,9 @@
 # Building the Android & iOS apps (package: `com.lasttopper.app`)
 
-The web app runs at https://lasttopper.lovable.app. Capacitor wraps that build
+The web app runs at https://lasttopper.app. Capacitor wraps that build
 into a Play Store / App Store app, adds **FLAG_SECURE** (no screenshots on
 Android), **local notifications that fire when the app is closed**, and
-**deep links** so any lasttopper.lovable.app link opens in the app if installed.
+**deep links** so any lasttopper.app link opens in the app if installed.
 
 ## 1. One-time setup on your machine
 
@@ -97,15 +97,15 @@ the `MainActivity` `<activity>` block:
     <action android:name="android.intent.action.VIEW" />
     <category android:name="android.intent.category.DEFAULT" />
     <category android:name="android.intent.category.BROWSABLE" />
-    <data android:scheme="https" android:host="lasttopper.lovable.app" />
+    <data android:scheme="https" android:host="lasttopper.app" />
 </intent-filter>
 ```
 
 **iOS:** replace `REPLACE_TEAMID` with your Apple Team ID, republish, then in
 Xcode add the Associated Domains capability with
-`applinks:lasttopper.lovable.app`.
+`applinks:lasttopper.app`.
 
-After that, tapping any lasttopper.lovable.app link opens the installed app;
+After that, tapping any lasttopper.app link opens the installed app;
 if it isn't installed, the browser opens as usual.
 
 ## 5. Build & release
@@ -174,7 +174,7 @@ team and Archive → upload.
   (`overrideUserAgent` in `capacitor.config.ts`) so Google doesn't block sign-in
   with `disallowed_useragent`. `accounts.google.com` is in `allowNavigation`, so
   the flow stays inside the app.
-- **Referral links** — `https://lasttopper.lovable.app/auth?ref=CODE` opens the
+- **Referral links** — `https://lasttopper.app/auth?ref=CODE` opens the
   installed app via App Links / Universal Links. `src/lib/referral-link.ts`
   stores the code (from the URL or the `appUrlOpen` deep-link listener) and the
   onboarding screen prefills it automatically.

@@ -1,7 +1,7 @@
 import { createFileRoute, Link, Outlet, useNavigate, useRouterState, redirect } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { amIAdmin, amIOwner } from "@/lib/admin.functions";
-import { ArrowLeft, LayoutDashboard, Users, Flag, Wallet, Database, Crown, Megaphone, Share2, Download, Ticket } from "lucide-react";
+import { ArrowLeft, LayoutDashboard, Users, Flag, Database, Crown, Megaphone, Share2, Download, Ticket, Key } from "lucide-react";
 import { failMessage } from "@/lib/friendly-error";
 
 export const Route = createFileRoute("/_authenticated/admin")({
@@ -46,9 +46,9 @@ function AdminLayout() {
 
   const tabs = [
     { to: "/admin", icon: LayoutDashboard, label: "Overview" },
+    { to: "/admin/api-settings", icon: Key, label: "API & Models" },
     { to: "/admin/users", icon: Users, label: "Users" },
     { to: "/admin/moderation", icon: Flag, label: "Moderation" },
-    { to: "/admin/withdrawals", icon: Wallet, label: "Withdrawals" },
     { to: "/admin/bank", icon: Database, label: "Question Bank" },
     { to: "/admin/announcements", icon: Megaphone, label: "Announcements" },
     { to: "/admin/social", icon: Share2, label: "Social links" },

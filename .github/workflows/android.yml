@@ -122,13 +122,13 @@ jobs:
           import sys, re
           p = sys.argv[1]
           s = open(p).read()
-          if 'lasttopper.lovable.app' not in s:
+          if 'lasttopper.app' not in s:
               filt = '''
                       <intent-filter android:autoVerify="true">
                           <action android:name="android.intent.action.VIEW" />
                           <category android:name="android.intent.category.DEFAULT" />
                           <category android:name="android.intent.category.BROWSABLE" />
-                          <data android:scheme="https" android:host="lasttopper.lovable.app" />
+                          <data android:scheme="https" android:host="lasttopper.app" />
                           <data android:scheme="https" android:host="lasttopper.github.io" />
                       </intent-filter>
                       <intent-filter>

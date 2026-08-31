@@ -196,19 +196,22 @@ export const generateHandwrittenImage = createServerFn({ method: "POST" })
     }
     body = body.replace(/[*#`$]/g, "").trim().slice(0, 1200);
 
-    const key = process.env.LOVABLE_API_KEY;
-    if (!key) throw new Error("Failed");
+    const apiKey = process.env.OPENAI_API_KEY ?? process.env.OPENROUTER_API_KEY_1;
+    const endpoint = process.env.OPENAI_API_KEY
+      ? "https://api.openai.com/v1/images/generations"
+      : "https://openrouter.ai/api/v1/images/generations";
+    if (!apiKey) throw new Error("No image generation API key configured");
 
     let b64 = "";
     try {
-      const resp = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
+      const resp = await fetch(endpoint, {
         method: "POST",
-        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "openai/gpt-image-2",
+          model: "dall-e-3",
           prompt: HANDWRITING_PROMPT(body),
-          quality: "low",
-          size: "1024x1536",
+          size: "1024x1024",
+          response_format: "b64_json",
           n: 1,
         }),
       });

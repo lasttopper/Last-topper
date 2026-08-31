@@ -28,7 +28,6 @@ export const getDailyChallenge = createServerFn({ method: "GET" })
 
     const ch = await ensureDailyChallenge(context.supabase, supabaseAdmin, profession);
     const { data: attempt } = await context.supabase
-
       .from("daily_challenge_attempts")
       .select("correct_count, reward_tc, completed_at")
       .eq("challenge_id", ch.id).eq("user_id", context.userId).maybeSingle();
@@ -60,7 +59,7 @@ export const submitDailyChallenge = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    const { rewardFor, creditCoins } = await import("@/lib/daily.server");
+    const { rewardFor } = await import("@/lib/daily.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: ch } = await context.supabase
@@ -93,7 +92,6 @@ export const submitDailyChallenge = createServerFn({ method: "POST" })
       },
       { onConflict: "challenge_id,user_id" },
     );
-    await creditCoins(supabaseAdmin, context.userId, reward, "daily_challenge", `Daily Challenge reward (${correct}/${questions.length})`, ch.id);
 
     // Wrong answers feed the spaced-repetition queue.
     const wrong = questions.filter((q) => data.answers[q.id] !== q.correct);

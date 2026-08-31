@@ -19,11 +19,11 @@ export const getMyProfile = createServerFn({ method: "GET" })
 
 const signupSchema = z.object({
   full_name: z.string().trim().min(2).max(80),
-  email: z.string().trim().toLowerCase().email().max(160),
+  phone: z.string().trim().min(10).max(15),
+  country_code: z.string().default("+91"),
   date_of_birth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   accept_terms: z.literal(true),
 });
-
 
 export const saveSignupDetails = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -38,31 +38,38 @@ export const saveSignupDetails = createServerFn({ method: "POST" })
       throw new Error("Please enter a valid date of birth.");
     }
 
-    // Enforce uniqueness of email across accounts
+    const cleanPhone = data.phone.replace(/\D/g, "");
+    if (cleanPhone.length < 10) {
+      throw new Error("Please enter a valid 10-digit phone number.");
+    }
+
+    // Check if phone number is already linked to another account
     const { data: existing, error: qErr } = await context.supabase
       .from("users")
       .select("id")
-      .eq("email", data.email)
+      .eq("phone", cleanPhone)
       .neq("id", context.userId)
       .maybeSingle();
     if (qErr) throw qErr;
     if (existing) {
-      throw new Error("This email is already linked to another account.");
+      throw new Error("This phone number is already linked to another account.");
     }
 
     const { error } = await context.supabase
       .from("users")
       .update({
         full_name: data.full_name,
-        email: data.email,
+        country_code: data.country_code || "+91",
+        phone: cleanPhone,
         date_of_birth: data.date_of_birth,
         terms_accepted_at: new Date().toISOString(),
       })
       .eq("id", context.userId);
+
     if (error) {
       const msg = String((error as { message?: string }).message ?? "");
       if (msg.includes("duplicate key")) {
-        throw new Error("This email is already linked to another account.");
+        throw new Error("This phone number is already linked to another account.");
       }
       throw error;
     }
@@ -79,10 +86,11 @@ export const updatePhone = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => phoneSchema.parse(data))
   .handler(async ({ data, context }) => {
+    const cleanPhone = data.phone.replace(/\D/g, "");
     const { data: existing, error: qErr } = await context.supabase
       .from("users")
       .select("id")
-      .eq("phone", data.phone)
+      .eq("phone", cleanPhone)
       .neq("id", context.userId)
       .maybeSingle();
     if (qErr) throw qErr;
@@ -90,7 +98,7 @@ export const updatePhone = createServerFn({ method: "POST" })
 
     const { error } = await context.supabase
       .from("users")
-      .update({ country_code: data.country_code, phone: data.phone })
+      .update({ country_code: data.country_code, phone: cleanPhone })
       .eq("id", context.userId);
     if (error) throw error;
     return { ok: true };
@@ -121,8 +129,8 @@ export const completeOnboarding = createServerFn({ method: "POST" })
       .eq("id", context.userId)
       .maybeSingle();
 
-    if (!u?.phone || !u?.date_of_birth || !u?.full_name) {
-      throw new Error("Please complete your profile (name, DOB, phone) before continuing.");
+    if (!u?.full_name || !u?.date_of_birth) {
+      throw new Error("Please complete your profile before continuing.");
     }
 
     const { error } = await context.supabase
@@ -131,41 +139,42 @@ export const completeOnboarding = createServerFn({ method: "POST" })
       .eq("id", context.userId);
     if (error) throw error;
 
-    // One-time signup verification alert to the dedicated bot
-    if (!u.signup_alert_sent_at) {
-      const lines = buildReport("New signup verified", [
-        ["Name", u.full_name],
-        ["Email", u.email],
-        ["Phone", `${u.country_code ?? "+91"} ${u.phone}`],
-        ["Date of birth", fmtDate(u.date_of_birth)],
-        ["Track", (u.profession ?? "").toString().toUpperCase()],
-        ["Terms accepted", fmtIST(u.terms_accepted_at)],
-        ["Signed up at", fmtIST(u.created_at)],
-        ["User ID", context.userId],
-      ]);
-      const fileName = safeFileName([String(u.full_name ?? "user"), "new_user"], "txt");
-      await sendTelegramDocument(
-        fileName,
-        lines,
-        [
-          "🆕 <b>New signup verified</b>",
-          `👤 ${u.full_name ?? "—"}`,
-          `📱 ${u.country_code ?? "+91"} ${u.phone}`,
-          `🎓 ${(u.profession ?? "—").toString().toUpperCase()}`,
-        ].join("\n"),
-      );
+    try {
+      if (!u.signup_alert_sent_at) {
+        const lines = buildReport("New signup verified", [
+          ["Name", u.full_name],
+          ["Email", u.email ?? "—"],
+          ["Phone", u.phone ? `${u.country_code ?? "+91"} ${u.phone}` : "—"],
+          ["Date of birth", fmtDate(u.date_of_birth)],
+          ["Track", (u.profession ?? "").toString().toUpperCase()],
+          ["Terms accepted", fmtIST(u.terms_accepted_at)],
+          ["Signed up at", fmtIST(u.created_at)],
+          ["User ID", context.userId],
+        ]);
+        const fileName = safeFileName([String(u.full_name ?? "user"), "new_user"], "txt");
+        await sendTelegramDocument(
+          fileName,
+          lines,
+          [
+            "🆕 <b>New signup verified</b>",
+            `👤 ${u.full_name ?? "—"}`,
+            `📱 ${u.phone ? `${u.country_code ?? "+91"} ${u.phone}` : "—"}`,
+            `🎓 ${(u.profession ?? "—").toString().toUpperCase()}`,
+          ].join("\n"),
+        );
 
-      await context.supabase
-        .from("users")
-        .update({ signup_alert_sent_at: new Date().toISOString() })
-        .eq("id", context.userId);
+        await context.supabase
+          .from("users")
+          .update({ signup_alert_sent_at: new Date().toISOString() })
+          .eq("id", context.userId);
+      }
+    } catch (e) {
+      console.error("[onboarding] telegram notification skipped", e);
     }
 
     return { ok: true };
   });
 
-// Update daily streak on app open. Increment when last_streak_date is yesterday;
-// reset to 1 when gap > 1 day; no-op when already updated today.
 export const pingActivity = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -201,7 +210,6 @@ export const pingActivity = createServerFn({ method: "POST" })
     return { streak: nextStreak };
   });
 
-// Streak details for the home header chip modal.
 export const getStreakDetails = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -218,4 +226,3 @@ export const getStreakDetails = createServerFn({ method: "GET" })
       last_active_date: (data?.last_active_date as string | null) ?? null,
     };
   });
-

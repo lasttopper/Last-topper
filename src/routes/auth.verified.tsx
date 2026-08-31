@@ -1,8 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { parseOAuthCallback } from "@/lib/native-auth";
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/auth/verified")({
   head: () => ({
@@ -21,6 +22,7 @@ export const Route = createFileRoute("/auth/verified")({
 });
 
 function VerifiedPage() {
+  const navigate = useNavigate();
   const [status, setStatus] = useState<"working" | "ok" | "fail">("working");
 
   useEffect(() => {
@@ -36,8 +38,11 @@ function VerifiedPage() {
           access_token: parsed.access_token,
           refresh_token: parsed.refresh_token,
         });
-        setStatus(error ? "fail" : "ok");
-        return;
+        if (!error) {
+          setStatus("ok");
+          setTimeout(() => navigate({ to: "/home", replace: true }), 1200);
+          return;
+        }
       }
 
       // 2) One-time email token (works even when opened in another browser).
@@ -48,23 +53,33 @@ function VerifiedPage() {
           type: type as "magiclink" | "signup" | "recovery" | "email" | "invite" | "email_change",
           token_hash: tokenHash,
         });
-        setStatus(error ? "fail" : "ok");
-        return;
+        if (!error) {
+          setStatus("ok");
+          setTimeout(() => navigate({ to: "/home", replace: true }), 1200);
+          return;
+        }
       }
 
       // 3) PKCE code exchange.
       const code = get("code");
       if (code) {
         const { error } = await supabase.auth.exchangeCodeForSession(code);
-        setStatus(error ? "fail" : "ok");
-        return;
+        if (!error) {
+          setStatus("ok");
+          setTimeout(() => navigate({ to: "/home", replace: true }), 1200);
+          return;
+        }
       }
 
       const { data } = await supabase.auth.getSession();
-      setStatus(data.session ? "ok" : "fail");
+      if (data.session) {
+        setStatus("ok");
+        setTimeout(() => navigate({ to: "/home", replace: true }), 1200);
+      } else {
+        setStatus("fail");
+      }
     })();
-  }, []);
-
+  }, [navigate]);
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-6">
@@ -72,26 +87,38 @@ function VerifiedPage() {
         {status === "working" && (
           <>
             <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
-            <p className="mt-4 text-sm text-muted-foreground">Verifying your link…</p>
+            <p className="mt-4 text-sm text-muted-foreground">Verifying your magic link…</p>
           </>
         )}
         {status === "ok" && (
           <>
-            <CheckCircle2 className="mx-auto h-10 w-10 text-primary" />
+            <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-500" />
             <h1 className="mt-4 text-xl font-semibold">Sign-in successful</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Your email is verified. Just reopen or refresh the Last Topper app (or website) —
-              you're already logged in.
+              Redirecting you to Last Topper dashboard…
             </p>
+            <Button
+              className="mt-6 w-full"
+              onClick={() => navigate({ to: "/home", replace: true })}
+            >
+              Continue to Dashboard
+            </Button>
           </>
         )}
         {status === "fail" && (
           <>
             <XCircle className="mx-auto h-10 w-10 text-destructive" />
-            <h1 className="mt-4 text-xl font-semibold">Link didn't work</h1>
+            <h1 className="mt-4 text-xl font-semibold">Link expired or invalid</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              This sign-in link is invalid or expired. Request a new magic link and try again.
+              This sign-in link is invalid or expired. Please request a new magic link.
             </p>
+            <Button
+              variant="outline"
+              className="mt-6 w-full"
+              onClick={() => navigate({ to: "/auth", replace: true })}
+            >
+              Back to Sign In
+            </Button>
           </>
         )}
       </div>

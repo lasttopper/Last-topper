@@ -66,46 +66,6 @@ export const Route = createFileRoute("/api/public/hooks/razorpay")({
           return new Response("ok");
         }
 
-        if (purpose === "wallet_topup") {
-          const note = `Wallet top-up via Razorpay (${paymentId})`;
-          const { data: existing } = await supabaseAdmin
-            .from("wallet_transactions").select("id").eq("note", note).maybeSingle();
-          if (existing) return new Response("ok");
-          const inr = Math.floor((p?.amount ?? 0) / 100);
-          if (inr <= 0) return new Response("ok");
-          const { data: u } = await supabaseAdmin
-            .from("users").select("balance, referred_by, referral_credited").eq("id", userId).maybeSingle();
-          const cur = Number(u?.balance ?? 0);
-          const next = cur + inr;
-          await supabaseAdmin.from("users").update({ balance: next }).eq("id", userId);
-          await supabaseAdmin.from("wallet_transactions").insert({
-            user_id: userId, type: "credit", category: "topup",
-            amount: inr, balance_after: next, note, reference_id: null,
-          });
-          // Referral reward on first ever top-up: a one-time Pro discount
-          // voucher (15%–25% off) for the referrer.
-          if (u?.referred_by && !u.referral_credited) {
-            const { awardReferralVoucher } = await import("@/lib/voucher.server");
-            const voucher = await awardReferralVoucher(u.referred_by);
-            await supabaseAdmin.from("users")
-              .update({ referral_credited: true }).eq("id", userId);
-            if (voucher) {
-              await supabaseAdmin.from("notifications").insert({
-                user_id: u.referred_by,
-                kind: "referral",
-                title: `🎁 You earned ${voucher.percent}% off Pro`,
-                body: `A friend you invited just topped up. Use code ${voucher.code} at checkout.`,
-                link: "/pricing",
-              });
-            }
-            // Every 10 converted referrals → 1 free week of Pro.
-            const { maybeGrantReferralMilestone } = await import("@/lib/referral.server");
-            await maybeGrantReferralMilestone(u.referred_by).catch(() => null);
-          }
-
-          return new Response("ok");
-        }
-
         return new Response("ok");
       },
     },

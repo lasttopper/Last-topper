@@ -740,10 +740,9 @@ export const reportIssue = createServerFn({ method: "POST" })
     });
     if (error) throw error;
 
-    const lovableKey = process.env.LOVABLE_API_KEY;
-    const telegramKey = (process.env.TELEGRAM_API_KEY_1 ?? process.env.TELEGRAM_API_KEY);
+    const telegramKey = process.env.TELEGRAM_API_KEY_1 ?? process.env.TELEGRAM_API_KEY;
     const chatId = process.env.REPORT_TELEGRAM_CHAT_ID;
-    if (lovableKey && telegramKey && chatId) {
+    if (telegramKey && chatId) {
       const text = [
         "🚩 <b>Question reported</b>",
         `User: <code>${context.userId}</code>`,
@@ -756,11 +755,9 @@ export const reportIssue = createServerFn({ method: "POST" })
         .filter(Boolean)
         .join("\n");
       try {
-        await fetch("https://connector-gateway.lovable.dev/telegram/sendMessage", {
+        await fetch(`https://api.telegram.org/bot${telegramKey}/sendMessage`, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${lovableKey}`,
-            "X-Connection-Api-Key": telegramKey,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML" }),

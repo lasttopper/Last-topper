@@ -13,25 +13,22 @@ import { getPendingReferral, clearPendingReferral } from "@/lib/referral-link";
 import { useUserStore, type Profession } from "@/store/user";
 import { failMessage } from "@/lib/friendly-error";
 
-
-
 type Step = "details" | "profession" | "tutorial";
 
 export function OnboardingFlow({ open }: { open: boolean }) {
   const patch = useUserStore((s) => s.patchProfile);
   const profile = useUserStore((s) => s.profile);
   const [step, setStep] = useState<Step>(
-    profile?.email && profile?.full_name && profile?.date_of_birth ? "profession" : "details",
+    profile?.full_name && profile?.date_of_birth && profile?.phone ? "profession" : "details",
   );
   const [fullName, setFullName] = useState(profile?.full_name ?? "");
   const [dob, setDob] = useState<string>("");
-  const [email, setEmail] = useState(profile?.email ?? "");
+  const [phone, setPhone] = useState(profile?.phone ?? "");
 
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [saving, setSaving] = useState(false);
   const [prof, setProf] = useState<Profession | null>(profile?.profession ?? null);
   const [tutorialStep, setTutorialStep] = useState(0);
-  // Prefilled from an invite link (?ref=CODE) opened in the browser or the app.
   const [refCode, setRefCode] = useState(() => getPendingReferral());
 
   async function submitDetails() {
@@ -43,8 +40,9 @@ export function OnboardingFlow({ open }: { open: boolean }) {
       toast.error("Please enter your date of birth.");
       return;
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())) {
-      toast.error("Enter a valid email address.");
+    const cleanPhone = phone.replace(/\D/g, "");
+    if (cleanPhone.length < 10) {
+      toast.error("Please enter a valid 10-digit mobile number.");
       return;
     }
     if (!acceptTerms) {
@@ -56,26 +54,32 @@ export function OnboardingFlow({ open }: { open: boolean }) {
       await saveSignupDetails({
         data: {
           full_name: fullName.trim(),
-          email: email.trim().toLowerCase(),
+          phone: cleanPhone,
+          country_code: "+91",
           date_of_birth: dob,
           accept_terms: true,
         },
       });
       patch({
         full_name: fullName.trim(),
-        email: email.trim().toLowerCase(),
+        phone: cleanPhone,
+        country_code: "+91",
+        date_of_birth: dob,
       });
 
       const code = refCode.trim().toUpperCase();
       if (code.length >= 4) {
         try {
           const res = await applyReferralCode({ data: { code } });
-          if (res.ok) { toast.success("Referral code applied"); clearPendingReferral(); }
-          else toast.error(res.error);
+          if (res.ok) {
+            toast.success("Referral code applied");
+            clearPendingReferral();
+          } else {
+            toast.error(res.error);
+          }
         } catch (err) {
           toast.error(failMessage(err, "Invalid referral code"));
         }
-
       }
       setStep("profession");
     } catch (e) {
@@ -106,9 +110,10 @@ export function OnboardingFlow({ open }: { open: boolean }) {
     try {
       await completeOnboarding();
       patch({ onboarded: true });
+      toast.success("Welcome to Last Topper!");
     } catch (e) {
       console.error(e);
-      toast.error("Could not finish onboarding.");
+      toast.error(failMessage(e, "Could not finish onboarding. Please try again."));
     } finally {
       setSaving(false);
     }
@@ -134,9 +139,8 @@ export function OnboardingFlow({ open }: { open: boolean }) {
             >
               <h2 className="text-xl font-semibold">Complete your profile</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                One-time verification. Your email must be unique to your account.
+                One-time setup to personalize your practice &amp; study track.
               </p>
-
 
               <div className="mt-5 space-y-4">
                 <div>
@@ -162,26 +166,29 @@ export function OnboardingFlow({ open }: { open: boolean }) {
                 </div>
 
                 <div>
-                  <Label className="text-xs">Email address</Label>
-                  <Input
-                    className="mt-1"
-                    type="email"
-                    inputMode="email"
-                    autoComplete="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    maxLength={160}
-                  />
+                  <Label className="text-xs">Mobile Phone Number</Label>
+                  <div className="mt-1 flex items-center gap-2">
+                    <span className="flex h-10 items-center rounded-md border border-input bg-muted px-3 text-xs font-medium text-muted-foreground">
+                      +91
+                    </span>
+                    <Input
+                      type="tel"
+                      inputMode="numeric"
+                      autoComplete="tel"
+                      placeholder="98765 43210"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      maxLength={15}
+                    />
+                  </div>
                 </div>
-
 
                 <div>
                   <Label className="text-xs">Referral code (optional)</Label>
                   <Input
                     className="mt-1 font-mono uppercase tracking-widest"
                     value={refCode}
-                    onChange={(e) => setRefCode(e.target.value.toUpperCase())}
+                    onChange={(e) => setRefCode(e.target.toUpperCase())}
                     placeholder="e.g. ABCD1234"
                     maxLength={16}
                   />
@@ -221,15 +228,15 @@ export function OnboardingFlow({ open }: { open: boolean }) {
               exit={{ opacity: 0, x: -20 }}
               className="p-6"
             >
-              <h2 className="text-xl font-semibold">Pick your track</h2>
-              <p className="mt-1 text-sm text-muted-foreground">You can change this later.</p>
+              <h2 className="text-xl font-semibold">Pick your study track</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Select your target competitive exam.</p>
               <div className="mt-5 grid grid-cols-1 gap-3">
                 <ProfessionCard
                   active={prof === "pcm"}
                   disabled={saving}
                   onClick={() => chooseProfession("pcm")}
                   icon={<Atom className="h-6 w-6" />}
-                  title="IIT — PCM"
+                  title="IIT-JEE — PCM"
                   body="Physics · Chemistry · Mathematics"
                 />
                 <ProfessionCard
@@ -280,7 +287,7 @@ export function OnboardingFlow({ open }: { open: boolean }) {
                   }}
                   disabled={saving}
                 >
-                  {tutorialStep < 2 ? "Next" : "Start"}
+                  {tutorialStep < 2 ? "Next" : "Start Practicing"}
                 </Button>
               </div>
             </motion.div>
@@ -330,18 +337,18 @@ function TutorialSlide({ step }: { step: number }) {
   const slides = [
     {
       icon: <Timer className="h-6 w-6" />,
-      title: "Timer mode",
-      body: "Practice under exam-like pressure with per-question timers.",
+      title: "Timer Mode",
+      body: "Practice under real exam conditions with timed question sets.",
     },
     {
       icon: <Brain className="h-6 w-6" />,
-      title: "AI assistant",
-      body: "Get concept explanations and step-by-step hints on demand.",
+      title: "AI Exam Coach",
+      body: "Get step-by-step hints and concept explanations whenever you get stuck.",
     },
     {
       icon: <BookMarked className="h-6 w-6" />,
-      title: "Mistake bank",
-      body: "Every wrong answer is saved so you can revisit and master it.",
+      title: "Personal Mistake Bank",
+      body: "Every wrong answer is automatically logged so you can review and eliminate weaknesses.",
     },
   ];
   const s = slides[step];

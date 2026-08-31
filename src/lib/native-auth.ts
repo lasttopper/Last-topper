@@ -2,7 +2,7 @@
  * Google sign-in for the native Android/iOS shell.
  *
  * Google blocks OAuth inside embedded WebViews, so on native we open the
- * Lovable OAuth broker in the system browser (Chrome Custom Tab / SFSafari).
+ * OAuth broker in the system browser (Chrome Custom Tab / SFSafari).
  * The broker redirects to https://<site>/auth/callback with the tokens, which
  * is an App Link / Universal Link, so Android/iOS hand it straight back to the
  * app. `__root.tsx` picks it up via `appUrlOpen`, closes the browser and sets

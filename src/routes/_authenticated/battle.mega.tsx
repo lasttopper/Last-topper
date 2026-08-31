@@ -2,20 +2,18 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Trophy, Users, Clock, Coins } from "lucide-react";
-import { TopperCoin } from "@/components/TopperCoin";
+import { Trophy, Users, Clock, Sparkles } from "lucide-react";
 import { getUpcomingMegaTest, joinMegaTest, startMegaSession } from "@/lib/battle.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { failMessage } from "@/lib/friendly-error";
-
 
 export const Route = createFileRoute("/_authenticated/battle/mega")({
   head: () => ({
     meta: [
       { title: "Sunday Mega Test — Last Topper" },
-      { name: "description", content: "180 questions, 3 hours, real prizes every Sunday 10AM IST." },
+      { name: "description", content: "180 questions, 3 hours, free entry every Sunday 10AM IST." },
       { property: "og:title", content: "Sunday Mega Test" },
-      { property: "og:description", content: "180q · 3hr · prizes up to 🪙100 Topper Coins." },
+      { property: "og:description", content: "180q · 3hr · free entry contest with Pro rewards." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -48,13 +46,11 @@ function MegaTest() {
     return () => { void supabase.removeChannel(ch); };
   }, [qc]);
 
-
   const join = useMutation({
     mutationFn: (id: string) => joinMegaTest({ data: { mega_test_id: id } }),
     onSuccess: () => {
-      toast.success("You're in!");
+      toast.success("You're registered!");
       qc.invalidateQueries({ queryKey: ["mega-test"] });
-      qc.invalidateQueries({ queryKey: ["wallet"] });
     },
     onError: (e: Error) => toast.error(failMessage(e)),
   });
@@ -89,10 +85,8 @@ function MegaTest() {
           Prove your skill.
         </h1>
         <p className="mt-2 inline-flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
-          180 questions · 3-hour window · entry <TopperCoin size={14} />{Number(test.entry_fee)} TC
+          180 questions · 3-hour window · <span className="font-semibold text-emerald-400">Free Entry</span>
         </p>
-
-
 
         <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
           <Stat icon={<Users className="h-4 w-4" />} label="Players" value={String(participants)} />
@@ -103,10 +97,6 @@ function MegaTest() {
           />
         </div>
 
-        <div className="mt-2 text-xs text-muted-foreground">
-          If fewer than {test.min_participants} players join, entry fee is auto-refunded.
-        </div>
-
         <div className="mt-5 flex flex-wrap gap-2">
           {!entry?.paid && !isDone && !isLive && (
             <button
@@ -114,10 +104,8 @@ function MegaTest() {
               disabled={join.isPending}
               onClick={() => join.mutate(test.id)}
             >
-              <Coins className="h-4 w-4" />
-              {join.isPending ? "Joining…" : (
-                <span className="inline-flex items-center gap-1">Join for <TopperCoin size={14} />{Number(test.entry_fee)} TC</span>
-              )}
+              <Sparkles className="h-4 w-4" />
+              {join.isPending ? "Registering…" : "Register for Free"}
             </button>
           )}
           {!entry?.paid && isLive && (
@@ -143,30 +131,35 @@ function MegaTest() {
               You're registered. Come back when the timer hits zero.
             </div>
           )}
-          {entry?.refunded && (
-            <div className="rounded-xl border border-amber-400/50 bg-amber-400/10 px-3 py-2 text-sm text-amber-200">
-              Refunded — didn't reach min participants.
-            </div>
-          )}
           {isDone && entry?.rank && (
             <div className="inline-flex items-center gap-1 rounded-xl border border-yellow-400/60 bg-yellow-400/10 px-3 py-2 text-sm text-yellow-100">
-              Rank #{entry.rank} · Prize <TopperCoin size={14} />{Number(entry.prize ?? 0)} TC
-
+              Rank #{entry.rank}
             </div>
           )}
         </div>
       </div>
 
       <div className="battle-glass p-5">
-        <div className="mb-2 text-xs uppercase tracking-widest text-muted-foreground">Prize pool (Topper Coins · 1 TC = ₹1)</div>
-        <ul className="space-y-1 text-sm">
-          <li className="inline-flex items-center gap-1">🥇 Rank 1 — <TopperCoin size={14} />100 TC <span className="ml-1 rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] uppercase tracking-widest text-primary font-semibold">+ Weekly Pro (50+ players)</span></li>
-          <li className="inline-flex items-center gap-1">🥈 Rank 2 — <TopperCoin size={14} />50 TC</li>
-          <li className="inline-flex items-center gap-1">🥉 Rank 3 — <TopperCoin size={14} />25 TC</li>
-          <li className="inline-flex items-center gap-1">Ranks 4–10 — <TopperCoin size={14} />15 TC each</li>
+        <div className="mb-2 text-xs uppercase tracking-widest text-muted-foreground">Rewards</div>
+        <ul className="space-y-1.5 text-sm">
+          <li className="flex items-center justify-between">
+            <span>🥇 Rank 1</span>
+            <span className="font-semibold text-primary">1 Week Pro Free (50+ players)</span>
+          </li>
+          <li className="flex items-center justify-between">
+            <span>🥈 Rank 2</span>
+            <span className="font-semibold text-foreground">50% OFF Pro Voucher</span>
+          </li>
+          <li className="flex items-center justify-between">
+            <span>🥉 Rank 3</span>
+            <span className="font-semibold text-foreground">25% OFF Pro Voucher</span>
+          </li>
+          <li className="flex items-center justify-between">
+            <span>Ranks 4–10</span>
+            <span className="text-muted-foreground">15% OFF Pro Voucher</span>
+          </li>
         </ul>
       </div>
-
     </div>
   );
 }

@@ -47,7 +47,6 @@ export const defaultNavGroups = (opts: { profileUserId?: string; admin?: boolean
       items: [
         { to: "/battle", label: "Battle arena", icon: <Swords className="h-4 w-4" /> },
         { to: "/battle/mega", label: "Sunday Mega", icon: <Trophy className="h-4 w-4" /> },
-        { to: "/battle/wallet", label: "Wallet", icon: <Wallet className="h-4 w-4" /> },
       ],
     },
     {

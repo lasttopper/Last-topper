@@ -19,22 +19,21 @@ function PrivacyPage() {
     <main className="mx-auto max-w-3xl px-6 py-12">
       <Link to="/" className="text-sm text-muted-foreground hover:underline">← Home</Link>
       <h1 className="mt-4 text-3xl font-semibold">Privacy Policy</h1>
-      <p className="mt-1 text-sm text-muted-foreground">Last updated: July 24, 2026</p>
+      <p className="mt-1 text-sm text-muted-foreground">Last updated: August 31, 2026</p>
 
       <section className="prose prose-slate mt-8 max-w-none space-y-6 text-sm leading-6 text-foreground">
         <p>
           This Privacy Policy explains how Last Topper ("we", "us") collects, uses, and shares
-          information when you use our JEE/NEET practice app, quizzes, battles, wallet, and
+          information when you use our JEE/NEET practice app, quizzes, battles, and
           community features (the "Service"). This page is maintained by the app owner.
         </p>
 
         <h2 className="text-lg font-semibold">1. Information we collect</h2>
         <ul className="list-disc pl-5">
-          <li><strong>Account info:</strong> name, email, avatar, and phone number you provide during Google sign-in and onboarding.</li>
+          <li><strong>Account info:</strong> name, email, avatar, and phone number you provide during sign-in and onboarding.</li>
           <li><strong>Profile info:</strong> profession (PCM/PCB), bio, and preferences.</li>
           <li><strong>Learning data:</strong> chapters selected, quiz sessions, answers, timing, scores, streaks, and mistakes.</li>
           <li><strong>Community content:</strong> posts, doubts, replies, group messages, uploaded images, votes, and reports.</li>
-          <li><strong>Wallet data:</strong> mock in-app balance, transactions, and withdrawal details (UPI ID or bank details you submit).</li>
           <li><strong>Device/usage:</strong> basic technical logs required to operate the Service.</li>
         </ul>
 
@@ -42,7 +41,6 @@ function PrivacyPage() {
         <ul className="list-disc pl-5">
           <li>Provide personalized questions, adaptive practice, results, and mistake bank.</li>
           <li>Run Quick Battles, Sunday Mega Test, leaderboards, and community features.</li>
-          <li>Process withdrawal requests and maintain wallet history.</li>
           <li>Send in-app notifications and operational updates.</li>
           <li>Prevent fraud, cheating, abuse, and enforce our Terms.</li>
         </ul>
@@ -59,7 +57,6 @@ function PrivacyPage() {
         <ul className="list-disc pl-5">
           <li>Auth and database infrastructure providers that run the Service.</li>
           <li>AI providers used only to generate questions.</li>
-          <li>Our admin team via internal messaging channels for operational alerts (e.g., withdrawal requests).</li>
           <li>Law enforcement when legally required.</li>
         </ul>
 
@@ -79,7 +76,7 @@ function PrivacyPage() {
         <h2 className="text-lg font-semibold">7. Security</h2>
         <p>
           We use industry-standard authentication, row-level security, and encrypted
-          connections. No system is 100% secure; please use a strong Google account.
+          connections. No system is 100% secure; please use a strong account.
         </p>
 
         <h2 className="text-lg font-semibold">8. Children</h2>

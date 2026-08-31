@@ -201,7 +201,7 @@ function ResultsPage() {
       const blob: Blob | null = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
       if (!blob) throw new Error("Could not create image");
       const file = new File([blob], `scorecard-${sessionId}.png`, { type: "image/png" });
-      const origin = typeof window !== "undefined" ? window.location.origin : "https://lasttopper.lovable.app";
+      const origin = typeof window !== "undefined" ? window.location.origin : "https://lasttopper.app";
       const code = ref.data?.code;
       const inviteUrl = code ? `${origin}/?ref=${code}` : origin;
       const shareText = `I scored ${accuracy.toFixed(1)}% (${correct}/${total}) on Last Topper! Join me${code ? ` with code ${code}` : ""}: ${inviteUrl}`;

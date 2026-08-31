@@ -31,7 +31,7 @@ function sanitizeTitle(value: unknown): string | null {
 }
 
 function isAiGenerationError(error: unknown): boolean {
-  return error instanceof Error && /AI|credits|busy|gateway|LOVABLE_API_KEY/i.test(error.message);
+  return error instanceof Error && /AI|credits|busy|gateway/i.test(error.message);
 }
 
 async function callAi<T>(
@@ -106,18 +106,16 @@ Also return diagram_caption: one short line (max 90 chars).`,
 
 
 async function firecrawlReferences(topic: string, chapter: string): Promise<ReviseReference[]> {
-  const lovKey = process.env.LOVABLE_API_KEY;
   const fcKey = process.env.FIRECRAWL_API_KEY;
-  if (!lovKey || !fcKey) return fallbackReferences();
+  if (!fcKey) return fallbackReferences();
   const sites = ["ncert.nic.in", "unacademy.com", "vedantu.com", "oswaalbooks.com", "byjus.com"];
   const query = `${topic} ${chapter} ${sites.map((s) => `site:${s}`).join(" OR ")}`;
   try {
-    const res = await fetch("https://connector-gateway.lovable.dev/firecrawl/v2/search", {
+    const res = await fetch("https://api.firecrawl.dev/v1/search", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${lovKey}`,
-        "X-Connection-Api-Key": fcKey,
+        Authorization: `Bearer ${fcKey}`,
       },
       body: JSON.stringify({ query, limit: 6 }),
     });

@@ -66,7 +66,7 @@ jobs:
 <dict>
 	<key>com.apple.developer.associated-domains</key>
 	<array>
-		<string>applinks:lasttopper.lovable.app</string>
+		<string>applinks:lasttopper.app</string>
 		<string>applinks:lasttopper.github.io</string>
 	</array>
 </dict>

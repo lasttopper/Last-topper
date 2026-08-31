@@ -20,12 +20,11 @@ export const adminStats = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertAdmin(context);
-    const [users, posts, doubts, reports, withdrawals, battles] = await Promise.all([
+    const [users, posts, doubts, reports, battles] = await Promise.all([
       context.supabase.from("users").select("id", { count: "exact", head: true }),
       context.supabase.from("forum_posts").select("id", { count: "exact", head: true }),
       context.supabase.from("doubts").select("id", { count: "exact", head: true }),
       context.supabase.from("post_reports").select("id", { count: "exact", head: true }).eq("status", "pending"),
-      context.supabase.from("withdrawal_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
       context.supabase.from("battle_sessions").select("id", { count: "exact", head: true }).not("submitted_at", "is", null),
     ]);
     return {
@@ -33,7 +32,6 @@ export const adminStats = createServerFn({ method: "GET" })
       posts: posts.count ?? 0,
       doubts: doubts.count ?? 0,
       pending_reports: reports.count ?? 0,
-      pending_withdrawals: withdrawals.count ?? 0,
       completed_battles: battles.count ?? 0,
     };
   });
@@ -43,11 +41,9 @@ export const adminListUsers = createServerFn({ method: "GET" })
   .inputValidator((d: unknown) => z.object({ q: z.string().optional() }).parse(d ?? {}))
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
-    // RLS on `users` limits reads to the caller's own row, so the admin list
-    // must go through the service-role client (after the admin check above).
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     let q = supabaseAdmin.from("users")
-      .select("id, email, full_name, phone, profession, is_banned, balance, reputation, streak, created_at, is_pro, pro_until")
+      .select("id, email, full_name, phone, profession, is_banned, reputation, streak, created_at, is_pro, pro_until")
       .order("created_at", { ascending: false }).limit(100);
     if (data.q) q = q.or(`email.ilike.%${data.q}%,full_name.ilike.%${data.q}%,phone.ilike.%${data.q}%`);
     const { data: rows, error } = await q;
@@ -137,30 +133,13 @@ export const adminResolveReport = createServerFn({ method: "POST" })
 
 export const adminListWithdrawals = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    await assertAdmin(context);
-    const { data, error } = await context.supabase.from("withdrawal_requests")
-      .select("id, user_id, amount, method, upi_id, account_name, account_number, ifsc, status, process_after, created_at")
-      .order("created_at", { ascending: false }).limit(100);
-    if (error) throw error;
-    return data ?? [];
+  .handler(async () => {
+    return [];
   });
 
 export const adminSetWithdrawalStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) =>
-    z.object({
-      withdrawal_id: z.string().uuid(),
-      status: z.enum(["processed", "rejected"]),
-    }).parse(d),
-  )
-  .handler(async ({ data, context }) => {
-    await assertAdmin(context);
-    const { error } = await context.supabase.from("withdrawal_requests")
-      .update({ status: data.status, processed_at: new Date().toISOString() })
-      .eq("id", data.withdrawal_id);
-    if (error) throw error;
-    await sendTelegramAlert(`💼 Withdrawal ${data.status} by admin\nID: ${data.withdrawal_id}`);
+  .handler(async () => {
     return { ok: true };
   });
 
@@ -168,7 +147,6 @@ export const adminReportsChart = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertAdmin(context);
-    // Signups per day, last 14 days
     const { data: users } = await context.supabase.from("users")
       .select("created_at").gte("created_at", new Date(Date.now() - 14 * 86400e3).toISOString());
     const byDay: Record<string, number> = {};
@@ -201,7 +179,6 @@ const bankRowSchema = z.object({
   subject_code: z.string().nullable().optional(),
   exam: z.string().max(40).nullable().optional(),
   exam_year: z.number().int().min(1980).max(2100).nullable().optional(),
-
 });
 
 const bulkUploadSchema = z.object({
@@ -225,11 +202,9 @@ export const adminBulkUploadQuestions = createServerFn({ method: "POST" })
       subject_code: r.subject_code ?? null,
       exam: r.exam ? r.exam.toUpperCase() : null,
       exam_year: r.exam_year ?? null,
-
       source: "admin",
       created_by: context.userId,
     }));
-    // insert in chunks of 200 to stay comfortably under any statement limits
     let inserted = 0;
     for (let i = 0; i < rows.length; i += 200) {
       const chunk = rows.slice(i, i + 200);
