@@ -119,11 +119,24 @@ export async function closeNativeBrowser() {
   }
 }
 
+export async function hideNativeSystemBars() {
+  try {
+    const { Capacitor } = await import("@capacitor/core");
+    if (!Capacitor.isNativePlatform()) return;
+    const { StatusBar } = await import("@capacitor/status-bar");
+    await StatusBar.setOverlaysWebView({ overlay: true });
+    await StatusBar.hide();
+  } catch {
+    /* status bar plugin unavailable / non-native */
+  }
+}
+
 export async function restoreNativeSystemBars() {
   try {
     const { Capacitor } = await import("@capacitor/core");
     if (!Capacitor.isNativePlatform()) return;
     const { StatusBar, Style } = await import("@capacitor/status-bar");
+    await StatusBar.show();
     await StatusBar.setOverlaysWebView({ overlay: false });
     await StatusBar.setStyle({ style: Style.Light });
     await StatusBar.setBackgroundColor({ color: "#ffffff" });

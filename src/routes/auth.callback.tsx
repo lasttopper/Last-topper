@@ -5,7 +5,7 @@ import {
   parseOAuthCallback,
   closeNativeBrowser,
   clearStoredOAuthState,
-  restoreNativeSystemBars,
+  hideNativeSystemBars,
   isNativeApp,
   appSchemeCallbackUrl,
   NATIVE_CALLBACK_MARKER,
@@ -71,7 +71,7 @@ function AuthCallback() {
         });
         clearStoredOAuthState();
         void closeNativeBrowser();
-        void restoreNativeSystemBars();
+        void hideNativeSystemBars();
         if (!error) {
           const target = await getPostAuthRedirectPath(sessionData.user?.id);
           navigate({ to: target, replace: true });
