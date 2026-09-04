@@ -61,6 +61,7 @@ import { Route as AuthenticatedResultsSessionIdRouteImport } from './routes/_aut
 import { Route as AuthenticatedReviseIndexRouteImport } from './routes/_authenticated/revise.index'
 import { Route as AuthenticatedReviseChapterIdRouteImport } from './routes/_authenticated/revise.$chapterId'
 import { Route as ApiPublicJoinMegaRouteImport } from './routes/api/public/join-mega'
+import { Route as ApiPublicMegaCountRouteImport } from './routes/api/public/mega-count'
 import { Route as AuthenticatedBattlePlaySessionIdRouteImport } from './routes/_authenticated/battle.play.$sessionId'
 import { Route as AuthenticatedCommunityDoubtDoubtIdRouteImport } from './routes/_authenticated/community.doubt.$doubtId'
 import { Route as AuthenticatedCommunityForumCategoryIdRouteImport } from './routes/_authenticated/community.forum.$categoryId'
@@ -352,6 +353,11 @@ const ApiPublicJoinMegaRoute = ApiPublicJoinMegaRouteImport.update({
   path: '/api/public/join-mega',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicMegaCountRoute = ApiPublicMegaCountRouteImport.update({
+  id: '/api/public/mega-count',
+  path: '/api/public/mega-count',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedBattlePlaySessionIdRoute =
   AuthenticatedBattlePlaySessionIdRouteImport.update({
     id: '/play/$sessionId',
@@ -453,6 +459,7 @@ export interface FileRoutesByFullPath {
   '/results/$sessionId': typeof AuthenticatedResultsSessionIdRoute
   '/revise/$chapterId': typeof AuthenticatedReviseChapterIdRoute
   '/api/public/join-mega': typeof ApiPublicJoinMegaRoute
+  '/api/public/mega-count': typeof ApiPublicMegaCountRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/battle/': typeof AuthenticatedBattleIndexRoute
   '/community/': typeof AuthenticatedCommunityIndexRoute
@@ -511,6 +518,7 @@ export interface FileRoutesByTo {
   '/results/$sessionId': typeof AuthenticatedResultsSessionIdRoute
   '/revise/$chapterId': typeof AuthenticatedReviseChapterIdRoute
   '/api/public/join-mega': typeof ApiPublicJoinMegaRoute
+  '/api/public/mega-count': typeof ApiPublicMegaCountRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/battle': typeof AuthenticatedBattleIndexRoute
   '/community': typeof AuthenticatedCommunityIndexRoute
@@ -575,6 +583,7 @@ export interface FileRoutesById {
   '/_authenticated/results/$sessionId': typeof AuthenticatedResultsSessionIdRoute
   '/_authenticated/revise/$chapterId': typeof AuthenticatedReviseChapterIdRoute
   '/api/public/join-mega': typeof ApiPublicJoinMegaRoute
+  '/api/public/mega-count': typeof ApiPublicMegaCountRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/battle/': typeof AuthenticatedBattleIndexRoute
   '/_authenticated/community/': typeof AuthenticatedCommunityIndexRoute
@@ -639,6 +648,7 @@ export interface FileRouteTypes {
     | '/results/$sessionId'
     | '/revise/$chapterId'
     | '/api/public/join-mega'
+    | '/api/public/mega-count'
     | '/admin/'
     | '/battle/'
     | '/community/'
@@ -697,6 +707,7 @@ export interface FileRouteTypes {
     | '/results/$sessionId'
     | '/revise/$chapterId'
     | '/api/public/join-mega'
+    | '/api/public/mega-count'
     | '/admin'
     | '/battle'
     | '/community'
@@ -760,6 +771,7 @@ export interface FileRouteTypes {
     | '/_authenticated/results/$sessionId'
     | '/_authenticated/revise/$chapterId'
     | '/api/public/join-mega'
+    | '/api/public/mega-count'
     | '/_authenticated/admin/'
     | '/_authenticated/battle/'
     | '/_authenticated/community/'
@@ -786,6 +798,7 @@ export interface RootRouteChildren {
   RegisterRoute: typeof RegisterRoute
   TermsRoute: typeof TermsRoute
   ApiPublicJoinMegaRoute: typeof ApiPublicJoinMegaRoute
+  ApiPublicMegaCountRoute: typeof ApiPublicMegaCountRoute
   ApiPublicHooksMegaTestLifecycleRoute: typeof ApiPublicHooksMegaTestLifecycleRoute
   ApiPublicHooksProcessWithdrawalsRoute: typeof ApiPublicHooksProcessWithdrawalsRoute
   ApiPublicHooksRazorpayRoute: typeof ApiPublicHooksRazorpayRoute
@@ -1158,6 +1171,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicJoinMegaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/mega-count': {
+      id: '/api/public/mega-count'
+      path: '/api/public/mega-count'
+      fullPath: '/api/public/mega-count'
+      preLoaderRoute: typeof ApiPublicMegaCountRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/battle/play/$sessionId': {
       id: '/_authenticated/battle/play/$sessionId'
       path: '/play/$sessionId'
@@ -1390,6 +1410,7 @@ const rootRouteChildren: RootRouteChildren = {
   RegisterRoute: RegisterRoute,
   TermsRoute: TermsRoute,
   ApiPublicJoinMegaRoute: ApiPublicJoinMegaRoute,
+  ApiPublicMegaCountRoute: ApiPublicMegaCountRoute,
   ApiPublicHooksMegaTestLifecycleRoute: ApiPublicHooksMegaTestLifecycleRoute,
   ApiPublicHooksProcessWithdrawalsRoute: ApiPublicHooksProcessWithdrawalsRoute,
   ApiPublicHooksRazorpayRoute: ApiPublicHooksRazorpayRoute,

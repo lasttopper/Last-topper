@@ -10,6 +10,14 @@ import { failMessage } from "@/lib/friendly-error";
 const MEGA_REGISTRATION_URL = "https://sub2unlock-topper.vercel.app/mega-register";
 const MEGA_PLAYERS_REFRESH_MS = 5000;
 
+type MegaCountResponse = {
+  ok: true;
+  participants: number;
+  streamParticipants: number;
+  byProfession: { pcm: number; pcb: number };
+  updatedAt: string;
+};
+
 export const Route = createFileRoute("/_authenticated/battle/mega")({
   head: () => ({
     meta: [
@@ -37,6 +45,28 @@ function MegaTest() {
     staleTime: 0,
   });
 
+  const megaTestId = q.data?.test?.id;
+  const megaScheduledStart = q.data?.test?.scheduled_start;
+
+  const liveCount = useQuery({
+    queryKey: ["mega-player-count", megaTestId, megaScheduledStart],
+    enabled: Boolean(megaTestId) && typeof window !== "undefined",
+    queryFn: async () => {
+      if (!megaTestId) throw new Error("Mega Test is not loaded yet");
+      const url = new URL("/api/public/mega-count", window.location.origin);
+      url.searchParams.set("mega_test_id", megaTestId);
+      url.searchParams.set("_", String(Date.now()));
+      const res = await fetch(url.toString(), { cache: "no-store" });
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.error || "Could not refresh player count");
+      return json as MegaCountResponse;
+    },
+    refetchInterval: MEGA_PLAYERS_REFRESH_MS,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: "always",
+    staleTime: 0,
+  });
+
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
@@ -47,6 +77,7 @@ function MegaTest() {
   useEffect(() => {
     const refreshMegaTest = () => {
       void qc.invalidateQueries({ queryKey: ["mega-test"] });
+      void qc.invalidateQueries({ queryKey: ["mega-player-count"] });
     };
 
     const ch = supabase
@@ -79,6 +110,7 @@ function MegaTest() {
         };
       });
       qc.invalidateQueries({ queryKey: ["mega-test"] });
+      qc.invalidateQueries({ queryKey: ["mega-player-count"] });
     },
     onError: (e: Error) => toast.error(failMessage(e)),
   });
@@ -122,6 +154,17 @@ function MegaTest() {
   if (!info) return <div className="battle-glass p-5 text-sm">Complete onboarding first.</div>;
 
   const { test, entry, participants } = info;
+
+
+  const liveParticipants = liveCount.data?.participants ?? participants ?? 0;
+  const liveBreakdown = liveCount.data?.byProfession ?? info.participantBreakdown;
+  const streamParticipants = liveCount.data?.streamParticipants ?? info.streamParticipants ?? participants ?? 0;
+  const countHint = liveBreakdown
+    ? `Live real entries · PCM ${liveBreakdown.pcm ?? 0} · PCB ${liveBreakdown.pcb ?? 0}${streamParticipants !== liveParticipants ? ` · Your stream ${streamParticipants}` : ""}`
+    : liveCount.isError
+      ? "Live count retrying…"
+      : "Live real entries";
+
   const startMs = new Date(test.scheduled_start).getTime();
   const endMs = new Date(test.scheduled_end).getTime();
   const isLive = now >= startMs && now < endMs;
@@ -156,7 +199,12 @@ function MegaTest() {
         </p>
 
         <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-          <Stat icon={<Users className="h-4 w-4" />} label="Joined Players" value={String(participants)} />
+          <Stat
+            icon={<Users className="h-4 w-4" />}
+            label="Joined Players"
+            value={formatCount(liveParticipants)}
+            helper={countHint}
+          />
           <Stat
             icon={<Clock className="h-4 w-4" />}
             label={isDone ? "Ended" : isLive ? "Ends in" : "Starts in"}
@@ -231,13 +279,28 @@ function MegaTest() {
   );
 }
 
-function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function Stat({
+  icon,
+  label,
+  value,
+  helper,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  helper?: React.ReactNode;
+}) {
   return (
     <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">{icon}{label}</div>
       <div className="mt-1 text-lg font-bold text-white">{value}</div>
+      {helper && <div className="mt-1 text-[10px] leading-snug text-emerald-200/80">{helper}</div>}
     </div>
   );
+}
+
+function formatCount(value: number) {
+  return new Intl.NumberFormat("en-IN").format(value);
 }
 
 function fmtDur(ms: number) {

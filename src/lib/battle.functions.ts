@@ -308,10 +308,19 @@ export const getUpcomingMegaTest = createServerFn({ method: "GET" })
       .from("mega_test_entries")
       .select("id, paid, refunded, session_id, score, rank, prize")
       .eq("mega_test_id", test.id).eq("user_id", context.userId).maybeSingle();
-    const { count } = await (await import("@/integrations/supabase/client.server")).supabaseAdmin
-      .from("mega_test_entries").select("id", { count: "exact", head: true })
-      .eq("mega_test_id", test.id).eq("paid", true);
-    return { test, entry, participants: count ?? 0 };
+    const { getMegaParticipantSummary } = await import("@/lib/mega-count.server");
+    const participantSummary = await getMegaParticipantSummary({
+      megaTestId: test.id as string,
+      scheduledStart: test.scheduled_start as string,
+    });
+    return {
+      test,
+      entry,
+      participants: participantSummary.participants,
+      streamParticipants: participantSummary.streamParticipants,
+      participantBreakdown: participantSummary.byProfession,
+      participantUpdatedAt: participantSummary.updatedAt,
+    };
   });
 
 export const joinMegaTest = createServerFn({ method: "POST" })
