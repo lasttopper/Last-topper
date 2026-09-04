@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { isNativeApp, startNativeGoogleSignIn } from "@/lib/native-auth";
+import { getPostAuthRedirectPath } from "@/lib/post-auth-redirect";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,13 +58,25 @@ function AuthPage() {
   const [emailSent, setEmailSent] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+
+    const goAfterAuth = async (userId?: string | null) => {
+      const target = await getPostAuthRedirectPath(userId);
+      if (!cancelled) navigate({ to: target, replace: true });
+    };
+
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/home", replace: true });
+      if (data.session) void goAfterAuth(data.session.user.id);
     });
+
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN" && session) navigate({ to: "/home", replace: true });
+      if (event === "SIGNED_IN" && session) void goAfterAuth(session.user.id);
     });
-    return () => sub.subscription.unsubscribe();
+
+    return () => {
+      cancelled = true;
+      sub.subscription.unsubscribe();
+    };
   }, [navigate]);
 
   async function handleGoogleSignIn() {
@@ -106,6 +119,7 @@ function AuthPage() {
         email: email.trim().toLowerCase(),
         options: {
           emailRedirectTo: `${window.location.origin}/auth/verified`,
+          shouldCreateUser: true,
         },
       });
       if (error) {

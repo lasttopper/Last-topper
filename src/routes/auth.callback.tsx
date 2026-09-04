@@ -10,6 +10,7 @@ import {
   NATIVE_CALLBACK_MARKER,
 } from "@/lib/native-auth";
 import { storeReferralFromUrl } from "@/lib/referral-link";
+import { getPostAuthRedirectPath } from "@/lib/post-auth-redirect";
 import { Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/auth/callback")({
@@ -63,14 +64,15 @@ function AuthCallback() {
       }
 
       if (parsed && !parsed.error) {
-        const { error } = await supabase.auth.setSession({
+        const { data: sessionData, error } = await supabase.auth.setSession({
           access_token: parsed.access_token,
           refresh_token: parsed.refresh_token,
         });
         clearStoredOAuthState();
         void closeNativeBrowser();
         if (!error) {
-          navigate({ to: "/home", replace: true });
+          const target = await getPostAuthRedirectPath(sessionData.user?.id);
+          navigate({ to: target, replace: true });
           return;
         }
       }
@@ -79,7 +81,8 @@ function AuthCallback() {
       // fall back to whatever session exists.
       const { data } = await supabase.auth.getSession();
       if (data.session) {
-        navigate({ to: "/home", replace: true });
+        const target = await getPostAuthRedirectPath(data.session.user.id);
+        navigate({ to: target, replace: true });
         return;
       }
       setMessage("Sign-in didn't complete. Please try again.");

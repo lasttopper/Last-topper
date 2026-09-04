@@ -14,6 +14,7 @@ import appCss from "../styles.css?url";
 import { supabase } from "@/integrations/supabase/client";
 import { registerPWA } from "@/lib/pwa-register";
 import { storeReferralFromUrl } from "@/lib/referral-link";
+import { getPostAuthRedirectPath } from "@/lib/post-auth-redirect";
 import {
   parseOAuthCallback,
   closeNativeBrowser,
@@ -228,13 +229,14 @@ function RootComponent() {
             const tokens = parseOAuthCallback(url);
             if (tokens && !tokens.error) {
               await closeNativeBrowser();
-              const { error } = await supabase.auth.setSession({
+              const { data, error } = await supabase.auth.setSession({
                 access_token: tokens.access_token,
                 refresh_token: tokens.refresh_token,
               });
               clearStoredOAuthState();
               if (!error) {
-                void router.navigate({ to: "/home", replace: true });
+                const target = await getPostAuthRedirectPath(data.user?.id);
+                void router.navigate({ to: target, replace: true });
                 return;
               }
             }

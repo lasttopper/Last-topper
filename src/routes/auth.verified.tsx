@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { parseOAuthCallback } from "@/lib/native-auth";
+import { getPostAuthRedirectPath, type PostAuthRedirectPath } from "@/lib/post-auth-redirect";
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -24,8 +25,20 @@ export const Route = createFileRoute("/auth/verified")({
 function VerifiedPage() {
   const navigate = useNavigate();
   const [status, setStatus] = useState<"working" | "ok" | "fail">("working");
+  const [redirectTarget, setRedirectTarget] = useState<PostAuthRedirectPath>("/home");
 
   useEffect(() => {
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const finishSignIn = async (userId?: string | null) => {
+      const target = await getPostAuthRedirectPath(userId);
+      if (cancelled) return;
+      setRedirectTarget(target);
+      setStatus("ok");
+      timer = setTimeout(() => navigate({ to: target, replace: true }), 1200);
+    };
+
     void (async () => {
       const url = new URL(window.location.href);
       const hash = new URLSearchParams(url.hash.replace(/^#/, ""));
@@ -34,13 +47,12 @@ function VerifiedPage() {
       // 1) Tokens delivered directly in the URL (implicit flow).
       const parsed = parseOAuthCallback(window.location.href);
       if (parsed && !parsed.error) {
-        const { error } = await supabase.auth.setSession({
+        const { data, error } = await supabase.auth.setSession({
           access_token: parsed.access_token,
           refresh_token: parsed.refresh_token,
         });
         if (!error) {
-          setStatus("ok");
-          setTimeout(() => navigate({ to: "/home", replace: true }), 1200);
+          await finishSignIn(data.user?.id);
           return;
         }
       }
@@ -49,13 +61,12 @@ function VerifiedPage() {
       const tokenHash = get("token_hash") ?? get("token");
       const type = get("type");
       if (tokenHash && type) {
-        const { error } = await supabase.auth.verifyOtp({
+        const { data, error } = await supabase.auth.verifyOtp({
           type: type as "magiclink" | "signup" | "recovery" | "email" | "invite" | "email_change",
           token_hash: tokenHash,
         });
         if (!error) {
-          setStatus("ok");
-          setTimeout(() => navigate({ to: "/home", replace: true }), 1200);
+          await finishSignIn(data.user?.id);
           return;
         }
       }
@@ -63,23 +74,28 @@ function VerifiedPage() {
       // 3) PKCE code exchange.
       const code = get("code");
       if (code) {
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
         if (!error) {
-          setStatus("ok");
-          setTimeout(() => navigate({ to: "/home", replace: true }), 1200);
+          await finishSignIn(data.session?.user.id ?? data.user?.id);
           return;
         }
       }
 
       const { data } = await supabase.auth.getSession();
       if (data.session) {
-        setStatus("ok");
-        setTimeout(() => navigate({ to: "/home", replace: true }), 1200);
+        await finishSignIn(data.session.user.id);
       } else {
         setStatus("fail");
       }
     })();
+
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
   }, [navigate]);
+
+  const targetLabel = redirectTarget === "/register" ? "registration" : "dashboard";
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-6">
@@ -95,13 +111,13 @@ function VerifiedPage() {
             <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-500" />
             <h1 className="mt-4 text-xl font-semibold">Sign-in successful</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Redirecting you to Last Topper dashboard…
+              Redirecting you to Last Topper {targetLabel}…
             </p>
             <Button
               className="mt-6 w-full"
-              onClick={() => navigate({ to: "/home", replace: true })}
+              onClick={() => navigate({ to: redirectTarget, replace: true })}
             >
-              Continue to Dashboard
+              Continue to {targetLabel === "registration" ? "Registration" : "Dashboard"}
             </Button>
           </>
         )}
