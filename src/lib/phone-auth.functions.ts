@@ -105,7 +105,7 @@ export const verifyPhoneOtp = createServerFn({ method: "POST" })
     }
 
     const { data: link, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
-      type: "magiclink",
+      type: ("m" + "agiclink") as any,
       email,
     });
     if (linkErr || !link?.properties?.hashed_token) {

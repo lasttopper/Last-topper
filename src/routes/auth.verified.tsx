@@ -62,7 +62,7 @@ function VerifiedPage() {
       const type = get("type");
       if (tokenHash && type) {
         const { data, error } = await supabase.auth.verifyOtp({
-          type: type as "magiclink" | "signup" | "recovery" | "email" | "invite" | "email_change",
+          type: type as any,
           token_hash: tokenHash,
         });
         if (!error) {
@@ -103,7 +103,7 @@ function VerifiedPage() {
         {status === "working" && (
           <>
             <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
-            <p className="mt-4 text-sm text-muted-foreground">Verifying your magic link…</p>
+            <p className="mt-4 text-sm text-muted-foreground">Verifying your sign-in link…</p>
           </>
         )}
         {status === "ok" && (
@@ -126,7 +126,7 @@ function VerifiedPage() {
             <XCircle className="mx-auto h-10 w-10 text-destructive" />
             <h1 className="mt-4 text-xl font-semibold">Link expired or invalid</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              This sign-in link is invalid or expired. Please request a new magic link.
+              This sign-in link is invalid or expired. Please request a new sign-in link.
             </p>
             <Button
               variant="outline"

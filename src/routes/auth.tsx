@@ -13,9 +13,9 @@ export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
       { title: "Sign in — Last Topper" },
-      { name: "description", content: "Sign in to Last Topper with Google or Email Magic Link and start practicing for JEE & NEET." },
+      { name: "description", content: "Sign in to Last Topper with Google or an email sign-in link and start practicing for JEE & NEET." },
       { property: "og:title", content: "Sign in — Last Topper" },
-      { property: "og:description", content: "Sign in to Last Topper with Google." },
+      { property: "og:description", content: "Sign in to Last Topper with Google or email." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -126,11 +126,11 @@ function AuthPage() {
         toast.error(error.message);
       } else {
         setEmailSent(true);
-        toast.success("Magic link sent! Check your inbox.");
+        toast.success("Sign-in link sent! Check your inbox.");
       }
     } catch (err) {
       console.error(err);
-      toast.error("Failed to send magic link.");
+      toast.error("Failed to send sign-in link.");
     } finally {
       setEmailBusy(false);
     }
@@ -188,7 +188,7 @@ function AuthPage() {
             </span>
           </div>
 
-          {/* Email Magic Link Section */}
+          {/* Email sign-in link section */}
           {!showEmailForm ? (
             <Button
               variant="ghost"
@@ -197,14 +197,14 @@ function AuthPage() {
               className="w-full flex items-center justify-center gap-2 text-xs font-medium text-muted-foreground border border-border/60 hover:bg-accent hover:text-foreground rounded-xl"
             >
               <Mail className="h-4 w-4 text-indigo-500" />
-              Sign in with Email Magic Link
+              Sign in with Email Link
             </Button>
           ) : (
             <div className="rounded-xl border border-border bg-card/60 p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                   <Mail className="h-3.5 w-3.5 text-indigo-500" />
-                  Email Magic Link
+                  Email Sign-in Link
                 </span>
                 <button
                   type="button"
@@ -221,7 +221,7 @@ function AuthPage() {
               {emailSent ? (
                 <div className="text-center py-2 space-y-2">
                   <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                    ✉️ Magic link sent to {email}
+                    ✉️ Sign-in link sent to {email}
                   </p>
                   <p className="text-[11px] text-muted-foreground">
                     Click the link in your email inbox to log in instantly.
@@ -243,7 +243,7 @@ function AuthPage() {
                     ) : (
                       <ArrowRight className="h-4 w-4 mr-2" />
                     )}
-                    {emailBusy ? "Sending link…" : "Send Magic Link"}
+                    {emailBusy ? "Sending link…" : "Send Sign-in Link"}
                   </Button>
                 </form>
               )}

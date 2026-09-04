@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { failMessage } from "@/lib/friendly-error";
 
 const MEGA_REGISTRATION_URL = "https://sub2unlock-topper.vercel.app/mega-register";
+const MEGA_PLAYERS_REFRESH_MS = 5000;
 
 export const Route = createFileRoute("/_authenticated/battle/mega")({
   head: () => ({
@@ -30,7 +31,10 @@ function MegaTest() {
   const q = useQuery({
     queryKey: ["mega-test"],
     queryFn: () => getUpcomingMegaTest(),
-    refetchInterval: 30000,
+    refetchInterval: MEGA_PLAYERS_REFRESH_MS,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: "always",
+    staleTime: 0,
   });
 
   const [now, setNow] = useState(Date.now());
@@ -41,20 +45,39 @@ function MegaTest() {
   }, []);
 
   useEffect(() => {
+    const refreshMegaTest = () => {
+      void qc.invalidateQueries({ queryKey: ["mega-test"] });
+    };
+
     const ch = supabase
       .channel("mega-live")
-      .on("postgres_changes", { event: "*", schema: "public", table: "mega_test_entries" },
-        () => qc.invalidateQueries({ queryKey: ["mega-test"] }))
-      .on("postgres_changes", { event: "*", schema: "public", table: "mega_tests" },
-        () => qc.invalidateQueries({ queryKey: ["mega-test"] }))
+      .on("postgres_changes", { event: "*", schema: "public", table: "mega_test_entries" }, refreshMegaTest)
+      .on("postgres_changes", { event: "*", schema: "public", table: "mega_tests" }, refreshMegaTest)
       .subscribe();
-    return () => { void supabase.removeChannel(ch); };
+
+    // Poll as a fallback so the joined-player count stays live even if the
+    // database table is not enabled for Supabase Realtime publication.
+    const fallback = setInterval(refreshMegaTest, MEGA_PLAYERS_REFRESH_MS);
+
+    return () => {
+      clearInterval(fallback);
+      void supabase.removeChannel(ch);
+    };
   }, [qc]);
 
   const join = useMutation({
     mutationFn: (id: string) => joinMegaTest({ data: { mega_test_id: id } }),
     onSuccess: () => {
       toast.success("You're registered for Sunday Mega Test!");
+      qc.setQueryData(["mega-test"], (old: any) => {
+        if (!old) return old;
+        const wasAlreadyJoined = Boolean(old.entry?.paid);
+        return {
+          ...old,
+          entry: old.entry ? { ...old.entry, paid: true } : { paid: true, session_id: null, rank: null },
+          participants: wasAlreadyJoined ? old.participants : Number(old.participants ?? 0) + 1,
+        };
+      });
       qc.invalidateQueries({ queryKey: ["mega-test"] });
     },
     onError: (e: Error) => toast.error(failMessage(e)),
@@ -133,7 +156,7 @@ function MegaTest() {
         </p>
 
         <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-          <Stat icon={<Users className="h-4 w-4" />} label="Players" value={String(participants)} />
+          <Stat icon={<Users className="h-4 w-4" />} label="Joined Players" value={String(participants)} />
           <Stat
             icon={<Clock className="h-4 w-4" />}
             label={isDone ? "Ended" : isLive ? "Ends in" : "Starts in"}
