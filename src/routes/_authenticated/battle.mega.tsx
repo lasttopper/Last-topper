@@ -13,9 +13,6 @@ const MEGA_PLAYERS_REFRESH_MS = 5000;
 type MegaCountResponse = {
   ok: true;
   participants: number;
-  streamParticipants: number;
-  byProfession: { pcm: number; pcb: number };
-  updatedAt: string;
 };
 
 export const Route = createFileRoute("/_authenticated/battle/mega")({
@@ -157,13 +154,6 @@ function MegaTest() {
 
 
   const liveParticipants = liveCount.data?.participants ?? participants ?? 0;
-  const liveBreakdown = liveCount.data?.byProfession ?? info.participantBreakdown;
-  const streamParticipants = liveCount.data?.streamParticipants ?? info.streamParticipants ?? participants ?? 0;
-  const countHint = liveBreakdown
-    ? `Live real entries · PCM ${liveBreakdown.pcm ?? 0} · PCB ${liveBreakdown.pcb ?? 0}${streamParticipants !== liveParticipants ? ` · Your stream ${streamParticipants}` : ""}`
-    : liveCount.isError
-      ? "Live count retrying…"
-      : "Live real entries";
 
   const startMs = new Date(test.scheduled_start).getTime();
   const endMs = new Date(test.scheduled_end).getTime();
@@ -203,7 +193,6 @@ function MegaTest() {
             icon={<Users className="h-4 w-4" />}
             label="Joined Players"
             value={formatCount(liveParticipants)}
-            helper={countHint}
           />
           <Stat
             icon={<Clock className="h-4 w-4" />}
@@ -279,22 +268,11 @@ function MegaTest() {
   );
 }
 
-function Stat({
-  icon,
-  label,
-  value,
-  helper,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  helper?: React.ReactNode;
-}) {
+function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">{icon}{label}</div>
       <div className="mt-1 text-lg font-bold text-white">{value}</div>
-      {helper && <div className="mt-1 text-[10px] leading-snug text-emerald-200/80">{helper}</div>}
     </div>
   );
 }
