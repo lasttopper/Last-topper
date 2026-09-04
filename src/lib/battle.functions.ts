@@ -216,11 +216,6 @@ export const getQuickLeaderboard = createServerFn({ method: "GET" })
       : { data: [] as Array<{ id: string; full_name: string | null; avatar_url: string | null }> };
     const map = new Map((users ?? []).map((u) => [u.id, u] as const));
 
-    // Showcase-only demo players
-    const { data: demo } = await (supabaseAdmin as any)
-      .from("demo_players")
-      .select("id, full_name, avatar_url, xp, score, correct_count, time_taken_seconds");
-
     type Row = {
       key: string;
       user: { full_name: string | null; avatar_url: string | null; email: string | null };
@@ -246,18 +241,7 @@ export const getQuickLeaderboard = createServerFn({ method: "GET" })
       };
     });
 
-    const demoRows: Row[] = ((demo ?? []) as any[]).map((d) => ({
-      key: `demo-${d.id}`,
-      user: { full_name: d.full_name as string, avatar_url: (d.avatar_url as string | null) ?? null, email: null },
-      score: Number(d.score ?? 0),
-      correct_count: Number(d.correct_count ?? 0),
-      time_taken_seconds: Number(d.time_taken_seconds ?? 0),
-      xp: Number(d.xp ?? 0),
-      is_me: false,
-      is_demo: true,
-    }));
-
-    return [...real, ...demoRows]
+    return real
       .sort((a, b) => b.score - a.score || (a.time_taken_seconds ?? 9999) - (b.time_taken_seconds ?? 9999))
       .slice(0, 50)
       .map((r, i) => ({ rank: i + 1, ...r }));

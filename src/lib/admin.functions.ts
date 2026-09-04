@@ -20,15 +20,26 @@ export const adminStats = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertAdmin(context);
-    const [users, posts, doubts, reports, battles] = await Promise.all([
-      context.supabase.from("users").select("id", { count: "exact", head: true }),
-      context.supabase.from("forum_posts").select("id", { count: "exact", head: true }),
-      context.supabase.from("doubts").select("id", { count: "exact", head: true }),
-      context.supabase.from("post_reports").select("id", { count: "exact", head: true }).eq("status", "pending"),
-      context.supabase.from("battle_sessions").select("id", { count: "exact", head: true }).not("submitted_at", "is", null),
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const [authUsers, profileUsers, posts, doubts, reports, battles] = await Promise.all([
+      supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1 }),
+      supabaseAdmin.from("users").select("id", { count: "exact", head: true }),
+      supabaseAdmin.from("forum_posts").select("id", { count: "exact", head: true }),
+      supabaseAdmin.from("doubts").select("id", { count: "exact", head: true }),
+      supabaseAdmin.from("post_reports").select("id", { count: "exact", head: true }).eq("status", "pending"),
+      supabaseAdmin.from("battle_sessions").select("id", { count: "exact", head: true }).not("submitted_at", "is", null),
     ]);
+
+    if (authUsers.error) throw authUsers.error;
+    for (const result of [profileUsers, posts, doubts, reports, battles]) {
+      if (result.error) throw result.error;
+    }
+
+    const authUserTotal = authUsers.data?.total;
     return {
-      users: users.count ?? 0,
+      // Supabase Auth is the source of truth for real registered accounts.
+      users: typeof authUserTotal === "number" ? authUserTotal : profileUsers.count ?? 0,
+      profile_users: profileUsers.count ?? 0,
       posts: posts.count ?? 0,
       doubts: doubts.count ?? 0,
       pending_reports: reports.count ?? 0,
@@ -98,7 +109,8 @@ export const adminListReports = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertAdmin(context);
-    const { data, error } = await context.supabase.from("post_reports")
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin.from("post_reports")
       .select("id, target_type, target_id, reason, message, status, created_at, reporter_id")
       .eq("status", "pending").order("created_at", { ascending: false }).limit(100);
     if (error) throw error;
@@ -115,7 +127,8 @@ export const adminResolveReport = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
-    const { data: report, error } = await context.supabase.from("post_reports")
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: report, error } = await supabaseAdmin.from("post_reports")
       .select("target_type, target_id").eq("id", data.report_id).maybeSingle();
     if (error) throw error;
     if (!report) throw new Error("report not found");
@@ -123,11 +136,16 @@ export const adminResolveReport = createServerFn({ method: "POST" })
       const table = report.target_type === "forum_post" ? "forum_posts"
         : report.target_type === "forum_reply" ? "forum_replies"
         : report.target_type === "doubt" ? "doubts" : "doubt_replies";
-      await context.supabase.from(table).delete().eq("id", report.target_id);
+      const { error: deleteError } = await (supabaseAdmin as any)
+        .from(table)
+        .delete()
+        .eq("id", report.target_id);
+      if (deleteError) throw deleteError;
     }
-    await context.supabase.from("post_reports")
+    const { error: updateError } = await supabaseAdmin.from("post_reports")
       .update({ status: data.action === "delete_content" ? "resolved" : "dismissed" })
       .eq("id", data.report_id);
+    if (updateError) throw updateError;
     return { ok: true };
   });
 
@@ -147,13 +165,29 @@ export const adminReportsChart = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertAdmin(context);
-    const { data: users } = await context.supabase.from("users")
-      .select("created_at").gte("created_at", new Date(Date.now() - 14 * 86400e3).toISOString());
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const since = new Date(Date.now() - 14 * 86400e3).toISOString();
     const byDay: Record<string, number> = {};
-    for (const u of users ?? []) {
-      const d = (u.created_at as string).slice(0, 10);
-      byDay[d] = (byDay[d] ?? 0) + 1;
+
+    // Supabase Auth users are the source of truth for signup counts. The
+    // public users table is a profile mirror and can be affected by RLS or
+    // delayed profile creation, so don't use it for admin overview metrics.
+    let page = 1;
+    const perPage = 1000;
+    for (;;) {
+      const { data: pageData, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
+      if (error) throw error;
+      for (const user of pageData?.users ?? []) {
+        const createdAt = user.created_at;
+        if (!createdAt || createdAt < since) continue;
+        const d = createdAt.slice(0, 10);
+        byDay[d] = (byDay[d] ?? 0) + 1;
+      }
+      const nextPage = pageData?.nextPage;
+      if (!nextPage || nextPage === page) break;
+      page = nextPage;
     }
+
     const days = Array.from({ length: 14 }, (_, i) => {
       const d = new Date(Date.now() - (13 - i) * 86400e3).toISOString().slice(0, 10);
       return { day: d.slice(5), signups: byDay[d] ?? 0 };
