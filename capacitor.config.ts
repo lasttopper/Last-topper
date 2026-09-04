@@ -22,8 +22,8 @@ const config: CapacitorConfig = {
   },
   server: {
     // The native shell loads the published web build.
-    url: "https://lasttopper.app",
-    hostname: "lasttopper.app",
+    url: "https://last-topper.vercel.app",
+    hostname: "last-topper.vercel.app",
     cleartext: false,
     androidScheme: "https",
     iosScheme: "https",
@@ -31,6 +31,7 @@ const config: CapacitorConfig = {
     // the site itself, Razorpay checkout/UPI, and the backend. Google sign-in
     // is deliberately NOT listed — it must open in the external browser.
     allowNavigation: [
+      "last-topper.vercel.app",
       "lasttopper.app",
       "*.lasttopper.app",
       "*.razorpay.com",

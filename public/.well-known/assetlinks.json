@@ -1,11 +1,13 @@
 [
   {
-    "relation": ["delegate_permission/common.handle_all_urls"],
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
     "target": {
       "namespace": "android_app",
       "package_name": "com.lasttopper.app",
       "sha256_cert_fingerprints": [
-        "85:E0:CB:E5:CE:C1:32:55:59:6A:A0:3B:C3:F8:48:0F:9A:69:2C:83:10:84:C5:D2:E8:09:A8:EB:84:94:73:37"
+        "CE:6B:88:3B:70:89:C9:84:43:43:B2:06:57:32:00:D9:AD:B4:97:AE:D1:E2:34:97:95:5E:00:7A:64:03:7F:35"
       ]
     }
   }
