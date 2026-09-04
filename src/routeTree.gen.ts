@@ -12,8 +12,10 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as MegaRegisterRouteImport } from './routes/mega-register'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as RefundRouteImport } from './routes/refund'
+import { Route as RegisterRouteImport } from './routes/register'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedAnalyticsRouteImport } from './routes/_authenticated/analytics'
@@ -22,10 +24,12 @@ import { Route as AuthenticatedCommunityRouteImport } from './routes/_authentica
 import { Route as AuthenticatedDailyRouteImport } from './routes/_authenticated/daily'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as AuthenticatedHomeRouteImport } from './routes/_authenticated/home'
+import { Route as AuthenticatedInviteRouteImport } from './routes/_authenticated/invite'
 import { Route as AuthenticatedLearningRouteImport } from './routes/_authenticated/learning'
 import { Route as AuthenticatedMistakesRouteImport } from './routes/_authenticated/mistakes'
 import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
 import { Route as AuthenticatedPricingRouteImport } from './routes/_authenticated/pricing'
+import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedPyqRouteImport } from './routes/_authenticated/pyq'
 import { Route as AuthenticatedReviewRouteImport } from './routes/_authenticated/review'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
@@ -50,11 +54,13 @@ import { Route as AuthenticatedCommunityDoubtsRouteImport } from './routes/_auth
 import { Route as AuthenticatedCommunityFeedRouteImport } from './routes/_authenticated/community.feed'
 import { Route as AuthenticatedCommunityGroupsRouteImport } from './routes/_authenticated/community.groups'
 import { Route as AuthenticatedFlashcardsChapterIdRouteImport } from './routes/_authenticated/flashcards.$chapterId'
+import { Route as AuthenticatedProfileIndexRouteImport } from './routes/_authenticated/profile.index'
 import { Route as AuthenticatedProfileUserIdRouteImport } from './routes/_authenticated/profile.$userId'
 import { Route as AuthenticatedQuizSessionIdRouteImport } from './routes/_authenticated/quiz.$sessionId'
 import { Route as AuthenticatedResultsSessionIdRouteImport } from './routes/_authenticated/results.$sessionId'
 import { Route as AuthenticatedReviseIndexRouteImport } from './routes/_authenticated/revise.index'
 import { Route as AuthenticatedReviseChapterIdRouteImport } from './routes/_authenticated/revise.$chapterId'
+import { Route as ApiPublicJoinMegaRouteImport } from './routes/api/public/join-mega'
 import { Route as AuthenticatedBattlePlaySessionIdRouteImport } from './routes/_authenticated/battle.play.$sessionId'
 import { Route as AuthenticatedCommunityDoubtDoubtIdRouteImport } from './routes/_authenticated/community.doubt.$doubtId'
 import { Route as AuthenticatedCommunityForumCategoryIdRouteImport } from './routes/_authenticated/community.forum.$categoryId'
@@ -79,6 +85,11 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MegaRegisterRoute = MegaRegisterRouteImport.update({
+  id: '/mega-register',
+  path: '/mega-register',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
@@ -87,6 +98,11 @@ const PrivacyRoute = PrivacyRouteImport.update({
 const RefundRoute = RefundRouteImport.update({
   id: '/refund',
   path: '/refund',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TermsRoute = TermsRouteImport.update({
@@ -129,6 +145,11 @@ const AuthenticatedHomeRoute = AuthenticatedHomeRouteImport.update({
   path: '/home',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedInviteRoute = AuthenticatedInviteRouteImport.update({
+  id: '/invite',
+  path: '/invite',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedLearningRoute = AuthenticatedLearningRouteImport.update({
   id: '/learning',
   path: '/learning',
@@ -148,6 +169,11 @@ const AuthenticatedNotificationsRoute =
 const AuthenticatedPricingRoute = AuthenticatedPricingRouteImport.update({
   id: '/pricing',
   path: '/pricing',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedPyqRoute = AuthenticatedPyqRouteImport.update({
@@ -285,11 +311,17 @@ const AuthenticatedFlashcardsChapterIdRoute =
     path: '/flashcards/$chapterId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedProfileIndexRoute =
+  AuthenticatedProfileIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedProfileRoute,
+  } as any)
 const AuthenticatedProfileUserIdRoute =
   AuthenticatedProfileUserIdRouteImport.update({
-    id: '/profile/$userId',
-    path: '/profile/$userId',
-    getParentRoute: () => AuthenticatedRouteRoute,
+    id: '/$userId',
+    path: '/$userId',
+    getParentRoute: () => AuthenticatedProfileRoute,
   } as any)
 const AuthenticatedQuizSessionIdRoute =
   AuthenticatedQuizSessionIdRouteImport.update({
@@ -315,6 +347,11 @@ const AuthenticatedReviseChapterIdRoute =
     path: '/revise/$chapterId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiPublicJoinMegaRoute = ApiPublicJoinMegaRouteImport.update({
+  id: '/api/public/join-mega',
+  path: '/api/public/join-mega',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedBattlePlaySessionIdRoute =
   AuthenticatedBattlePlaySessionIdRouteImport.update({
     id: '/play/$sessionId',
@@ -372,8 +409,10 @@ const ApiPublicHooksTelegramWithdrawalRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRouteWithChildren
+  '/mega-register': typeof MegaRegisterRoute
   '/privacy': typeof PrivacyRoute
   '/refund': typeof RefundRoute
+  '/register': typeof RegisterRoute
   '/terms': typeof TermsRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/analytics': typeof AuthenticatedAnalyticsRoute
@@ -382,10 +421,12 @@ export interface FileRoutesByFullPath {
   '/daily': typeof AuthenticatedDailyRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/home': typeof AuthenticatedHomeRoute
+  '/invite': typeof AuthenticatedInviteRoute
   '/learning': typeof AuthenticatedLearningRoute
   '/mistakes': typeof AuthenticatedMistakesRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/pricing': typeof AuthenticatedPricingRoute
+  '/profile': typeof AuthenticatedProfileRouteWithChildren
   '/pyq': typeof AuthenticatedPyqRoute
   '/review': typeof AuthenticatedReviewRoute
   '/auth/callback': typeof AuthCallbackRoute
@@ -411,9 +452,11 @@ export interface FileRoutesByFullPath {
   '/quiz/$sessionId': typeof AuthenticatedQuizSessionIdRoute
   '/results/$sessionId': typeof AuthenticatedResultsSessionIdRoute
   '/revise/$chapterId': typeof AuthenticatedReviseChapterIdRoute
+  '/api/public/join-mega': typeof ApiPublicJoinMegaRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/battle/': typeof AuthenticatedBattleIndexRoute
   '/community/': typeof AuthenticatedCommunityIndexRoute
+  '/profile/': typeof AuthenticatedProfileIndexRoute
   '/revise/': typeof AuthenticatedReviseIndexRoute
   '/battle/play/$sessionId': typeof AuthenticatedBattlePlaySessionIdRoute
   '/community/doubt/$doubtId': typeof AuthenticatedCommunityDoubtDoubtIdRoute
@@ -428,13 +471,16 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRouteWithChildren
+  '/mega-register': typeof MegaRegisterRoute
   '/privacy': typeof PrivacyRoute
   '/refund': typeof RefundRoute
+  '/register': typeof RegisterRoute
   '/terms': typeof TermsRoute
   '/analytics': typeof AuthenticatedAnalyticsRoute
   '/daily': typeof AuthenticatedDailyRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/home': typeof AuthenticatedHomeRoute
+  '/invite': typeof AuthenticatedInviteRoute
   '/learning': typeof AuthenticatedLearningRoute
   '/mistakes': typeof AuthenticatedMistakesRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
@@ -464,9 +510,11 @@ export interface FileRoutesByTo {
   '/quiz/$sessionId': typeof AuthenticatedQuizSessionIdRoute
   '/results/$sessionId': typeof AuthenticatedResultsSessionIdRoute
   '/revise/$chapterId': typeof AuthenticatedReviseChapterIdRoute
+  '/api/public/join-mega': typeof ApiPublicJoinMegaRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/battle': typeof AuthenticatedBattleIndexRoute
   '/community': typeof AuthenticatedCommunityIndexRoute
+  '/profile': typeof AuthenticatedProfileIndexRoute
   '/revise': typeof AuthenticatedReviseIndexRoute
   '/battle/play/$sessionId': typeof AuthenticatedBattlePlaySessionIdRoute
   '/community/doubt/$doubtId': typeof AuthenticatedCommunityDoubtDoubtIdRoute
@@ -483,8 +531,10 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRouteWithChildren
+  '/mega-register': typeof MegaRegisterRoute
   '/privacy': typeof PrivacyRoute
   '/refund': typeof RefundRoute
+  '/register': typeof RegisterRoute
   '/terms': typeof TermsRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/_authenticated/analytics': typeof AuthenticatedAnalyticsRoute
@@ -493,10 +543,12 @@ export interface FileRoutesById {
   '/_authenticated/daily': typeof AuthenticatedDailyRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/_authenticated/home': typeof AuthenticatedHomeRoute
+  '/_authenticated/invite': typeof AuthenticatedInviteRoute
   '/_authenticated/learning': typeof AuthenticatedLearningRoute
   '/_authenticated/mistakes': typeof AuthenticatedMistakesRoute
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
   '/_authenticated/pricing': typeof AuthenticatedPricingRoute
+  '/_authenticated/profile': typeof AuthenticatedProfileRouteWithChildren
   '/_authenticated/pyq': typeof AuthenticatedPyqRoute
   '/_authenticated/review': typeof AuthenticatedReviewRoute
   '/auth/callback': typeof AuthCallbackRoute
@@ -522,9 +574,11 @@ export interface FileRoutesById {
   '/_authenticated/quiz/$sessionId': typeof AuthenticatedQuizSessionIdRoute
   '/_authenticated/results/$sessionId': typeof AuthenticatedResultsSessionIdRoute
   '/_authenticated/revise/$chapterId': typeof AuthenticatedReviseChapterIdRoute
+  '/api/public/join-mega': typeof ApiPublicJoinMegaRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/battle/': typeof AuthenticatedBattleIndexRoute
   '/_authenticated/community/': typeof AuthenticatedCommunityIndexRoute
+  '/_authenticated/profile/': typeof AuthenticatedProfileIndexRoute
   '/_authenticated/revise/': typeof AuthenticatedReviseIndexRoute
   '/_authenticated/battle/play/$sessionId': typeof AuthenticatedBattlePlaySessionIdRoute
   '/_authenticated/community/doubt/$doubtId': typeof AuthenticatedCommunityDoubtDoubtIdRoute
@@ -541,8 +595,10 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/mega-register'
     | '/privacy'
     | '/refund'
+    | '/register'
     | '/terms'
     | '/admin'
     | '/analytics'
@@ -551,10 +607,12 @@ export interface FileRouteTypes {
     | '/daily'
     | '/history'
     | '/home'
+    | '/invite'
     | '/learning'
     | '/mistakes'
     | '/notifications'
     | '/pricing'
+    | '/profile'
     | '/pyq'
     | '/review'
     | '/auth/callback'
@@ -580,9 +638,11 @@ export interface FileRouteTypes {
     | '/quiz/$sessionId'
     | '/results/$sessionId'
     | '/revise/$chapterId'
+    | '/api/public/join-mega'
     | '/admin/'
     | '/battle/'
     | '/community/'
+    | '/profile/'
     | '/revise/'
     | '/battle/play/$sessionId'
     | '/community/doubt/$doubtId'
@@ -597,13 +657,16 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/mega-register'
     | '/privacy'
     | '/refund'
+    | '/register'
     | '/terms'
     | '/analytics'
     | '/daily'
     | '/history'
     | '/home'
+    | '/invite'
     | '/learning'
     | '/mistakes'
     | '/notifications'
@@ -633,9 +696,11 @@ export interface FileRouteTypes {
     | '/quiz/$sessionId'
     | '/results/$sessionId'
     | '/revise/$chapterId'
+    | '/api/public/join-mega'
     | '/admin'
     | '/battle'
     | '/community'
+    | '/profile'
     | '/revise'
     | '/battle/play/$sessionId'
     | '/community/doubt/$doubtId'
@@ -651,8 +716,10 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/mega-register'
     | '/privacy'
     | '/refund'
+    | '/register'
     | '/terms'
     | '/_authenticated/admin'
     | '/_authenticated/analytics'
@@ -661,10 +728,12 @@ export interface FileRouteTypes {
     | '/_authenticated/daily'
     | '/_authenticated/history'
     | '/_authenticated/home'
+    | '/_authenticated/invite'
     | '/_authenticated/learning'
     | '/_authenticated/mistakes'
     | '/_authenticated/notifications'
     | '/_authenticated/pricing'
+    | '/_authenticated/profile'
     | '/_authenticated/pyq'
     | '/_authenticated/review'
     | '/auth/callback'
@@ -690,9 +759,11 @@ export interface FileRouteTypes {
     | '/_authenticated/quiz/$sessionId'
     | '/_authenticated/results/$sessionId'
     | '/_authenticated/revise/$chapterId'
+    | '/api/public/join-mega'
     | '/_authenticated/admin/'
     | '/_authenticated/battle/'
     | '/_authenticated/community/'
+    | '/_authenticated/profile/'
     | '/_authenticated/revise/'
     | '/_authenticated/battle/play/$sessionId'
     | '/_authenticated/community/doubt/$doubtId'
@@ -709,9 +780,12 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRouteWithChildren
+  MegaRegisterRoute: typeof MegaRegisterRoute
   PrivacyRoute: typeof PrivacyRoute
   RefundRoute: typeof RefundRoute
+  RegisterRoute: typeof RegisterRoute
   TermsRoute: typeof TermsRoute
+  ApiPublicJoinMegaRoute: typeof ApiPublicJoinMegaRoute
   ApiPublicHooksMegaTestLifecycleRoute: typeof ApiPublicHooksMegaTestLifecycleRoute
   ApiPublicHooksProcessWithdrawalsRoute: typeof ApiPublicHooksProcessWithdrawalsRoute
   ApiPublicHooksRazorpayRoute: typeof ApiPublicHooksRazorpayRoute
@@ -741,6 +815,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/mega-register': {
+      id: '/mega-register'
+      path: '/mega-register'
+      fullPath: '/mega-register'
+      preLoaderRoute: typeof MegaRegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/privacy': {
       id: '/privacy'
       path: '/privacy'
@@ -753,6 +834,13 @@ declare module '@tanstack/react-router' {
       path: '/refund'
       fullPath: '/refund'
       preLoaderRoute: typeof RefundRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/terms': {
@@ -811,6 +899,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedHomeRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/invite': {
+      id: '/_authenticated/invite'
+      path: '/invite'
+      fullPath: '/invite'
+      preLoaderRoute: typeof AuthenticatedInviteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/learning': {
       id: '/_authenticated/learning'
       path: '/learning'
@@ -837,6 +932,13 @@ declare module '@tanstack/react-router' {
       path: '/pricing'
       fullPath: '/pricing'
       preLoaderRoute: typeof AuthenticatedPricingRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/profile': {
+      id: '/_authenticated/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof AuthenticatedProfileRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/pyq': {
@@ -1007,12 +1109,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedFlashcardsChapterIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/profile/': {
+      id: '/_authenticated/profile/'
+      path: '/'
+      fullPath: '/profile/'
+      preLoaderRoute: typeof AuthenticatedProfileIndexRouteImport
+      parentRoute: typeof AuthenticatedProfileRoute
+    }
     '/_authenticated/profile/$userId': {
       id: '/_authenticated/profile/$userId'
-      path: '/profile/$userId'
+      path: '/$userId'
       fullPath: '/profile/$userId'
       preLoaderRoute: typeof AuthenticatedProfileUserIdRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      parentRoute: typeof AuthenticatedProfileRoute
     }
     '/_authenticated/quiz/$sessionId': {
       id: '/_authenticated/quiz/$sessionId'
@@ -1041,6 +1150,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/revise/$chapterId'
       preLoaderRoute: typeof AuthenticatedReviseChapterIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/public/join-mega': {
+      id: '/api/public/join-mega'
+      path: '/api/public/join-mega'
+      fullPath: '/api/public/join-mega'
+      preLoaderRoute: typeof ApiPublicJoinMegaRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/battle/play/$sessionId': {
       id: '/_authenticated/battle/play/$sessionId'
@@ -1190,6 +1306,19 @@ const AuthenticatedCommunityRouteWithChildren =
     AuthenticatedCommunityRouteChildren,
   )
 
+interface AuthenticatedProfileRouteChildren {
+  AuthenticatedProfileUserIdRoute: typeof AuthenticatedProfileUserIdRoute
+  AuthenticatedProfileIndexRoute: typeof AuthenticatedProfileIndexRoute
+}
+
+const AuthenticatedProfileRouteChildren: AuthenticatedProfileRouteChildren = {
+  AuthenticatedProfileUserIdRoute: AuthenticatedProfileUserIdRoute,
+  AuthenticatedProfileIndexRoute: AuthenticatedProfileIndexRoute,
+}
+
+const AuthenticatedProfileRouteWithChildren =
+  AuthenticatedProfileRoute._addFileChildren(AuthenticatedProfileRouteChildren)
+
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRouteWithChildren
   AuthenticatedAnalyticsRoute: typeof AuthenticatedAnalyticsRoute
@@ -1198,14 +1327,15 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDailyRoute: typeof AuthenticatedDailyRoute
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
   AuthenticatedHomeRoute: typeof AuthenticatedHomeRoute
+  AuthenticatedInviteRoute: typeof AuthenticatedInviteRoute
   AuthenticatedLearningRoute: typeof AuthenticatedLearningRoute
   AuthenticatedMistakesRoute: typeof AuthenticatedMistakesRoute
   AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
   AuthenticatedPricingRoute: typeof AuthenticatedPricingRoute
+  AuthenticatedProfileRoute: typeof AuthenticatedProfileRouteWithChildren
   AuthenticatedPyqRoute: typeof AuthenticatedPyqRoute
   AuthenticatedReviewRoute: typeof AuthenticatedReviewRoute
   AuthenticatedFlashcardsChapterIdRoute: typeof AuthenticatedFlashcardsChapterIdRoute
-  AuthenticatedProfileUserIdRoute: typeof AuthenticatedProfileUserIdRoute
   AuthenticatedQuizSessionIdRoute: typeof AuthenticatedQuizSessionIdRoute
   AuthenticatedResultsSessionIdRoute: typeof AuthenticatedResultsSessionIdRoute
   AuthenticatedReviseChapterIdRoute: typeof AuthenticatedReviseChapterIdRoute
@@ -1220,14 +1350,15 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDailyRoute: AuthenticatedDailyRoute,
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
   AuthenticatedHomeRoute: AuthenticatedHomeRoute,
+  AuthenticatedInviteRoute: AuthenticatedInviteRoute,
   AuthenticatedLearningRoute: AuthenticatedLearningRoute,
   AuthenticatedMistakesRoute: AuthenticatedMistakesRoute,
   AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
   AuthenticatedPricingRoute: AuthenticatedPricingRoute,
+  AuthenticatedProfileRoute: AuthenticatedProfileRouteWithChildren,
   AuthenticatedPyqRoute: AuthenticatedPyqRoute,
   AuthenticatedReviewRoute: AuthenticatedReviewRoute,
   AuthenticatedFlashcardsChapterIdRoute: AuthenticatedFlashcardsChapterIdRoute,
-  AuthenticatedProfileUserIdRoute: AuthenticatedProfileUserIdRoute,
   AuthenticatedQuizSessionIdRoute: AuthenticatedQuizSessionIdRoute,
   AuthenticatedResultsSessionIdRoute: AuthenticatedResultsSessionIdRoute,
   AuthenticatedReviseChapterIdRoute: AuthenticatedReviseChapterIdRoute,
@@ -1253,9 +1384,12 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRouteWithChildren,
+  MegaRegisterRoute: MegaRegisterRoute,
   PrivacyRoute: PrivacyRoute,
   RefundRoute: RefundRoute,
+  RegisterRoute: RegisterRoute,
   TermsRoute: TermsRoute,
+  ApiPublicJoinMegaRoute: ApiPublicJoinMegaRoute,
   ApiPublicHooksMegaTestLifecycleRoute: ApiPublicHooksMegaTestLifecycleRoute,
   ApiPublicHooksProcessWithdrawalsRoute: ApiPublicHooksProcessWithdrawalsRoute,
   ApiPublicHooksRazorpayRoute: ApiPublicHooksRazorpayRoute,

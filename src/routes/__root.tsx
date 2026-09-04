@@ -6,6 +6,7 @@ import {
   useRouter,
   HeadContent,
   Scripts,
+  isRedirect,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 
@@ -46,36 +47,108 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
-  console.error(error);
-  const router = useRouter();
+function ErrorComponent({ error }: { error: Error; reset: () => void }) {
+  console.error("[ErrorComponent caught error]:", error);
+
+  const errObj = (error && typeof error === "object" ? error : {}) as any;
+
+  const isRedir =
+    isRedirect(error) ||
+    errObj.status === 307 ||
+    errObj.status === 302 ||
+    errObj.statusCode === 307 ||
+    errObj.statusCode === 302 ||
+    errObj.routerCode === "REDIRECT" ||
+    Boolean(errObj.to) ||
+    Boolean(errObj.href) ||
+    Boolean(errObj.location) ||
+    Boolean(errObj.options?.to) ||
+    Boolean(errObj.options?.href) ||
+    Boolean(errObj.isRedirect);
+
+  const rawStr = [
+    errObj.message,
+    errObj.name,
+    errObj.cause,
+    errObj.error,
+    String(error),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  const isAuthError =
+    rawStr.includes("jwt") ||
+    rawStr.includes("token") ||
+    rawStr.includes("not authenticated") ||
+    rawStr.includes("unauthorized") ||
+    rawStr.includes("401") ||
+    rawStr.includes("403") ||
+    rawStr.includes("session") ||
+    rawStr.includes("auth") ||
+    rawStr.includes("redirect");
+
+  const isChunkError =
+    rawStr.includes("dynamically imported module") ||
+    rawStr.includes("loading chunk") ||
+    rawStr.includes("failed to fetch module") ||
+    rawStr.includes("import");
+
+  const extractedTarget =
+    errObj.to ||
+    errObj.href ||
+    errObj.location ||
+    errObj.options?.to ||
+    errObj.options?.href;
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const path = window.location.pathname;
+      const isAuthedPath =
+        path.startsWith("/_authenticated") ||
+        path === "/home" ||
+        path.startsWith("/profile") ||
+        path.startsWith("/battle") ||
+        path.startsWith("/community") ||
+        path.startsWith("/learning") ||
+        path.startsWith("/mistakes") ||
+        path.startsWith("/daily") ||
+        path.startsWith("/quiz") ||
+        path.startsWith("/results") ||
+        path.startsWith("/analytics") ||
+        path.startsWith("/history") ||
+        path.startsWith("/review") ||
+        path.startsWith("/pyq") ||
+        path.startsWith("/revise") ||
+        path.startsWith("/admin");
+
+      if (isRedir || isAuthError || isAuthedPath) {
+        try {
+          Object.keys(localStorage).forEach((k) => {
+            if (k.startsWith("sb-") || k.includes("supabase")) localStorage.removeItem(k);
+          });
+        } catch {
+          /* empty */
+        }
+        const dest = extractedTarget || "/auth";
+        if (path !== dest) {
+          window.location.href = dest;
+        } else {
+          window.location.href = "/";
+        }
+      } else if (isChunkError) {
+        window.location.reload();
+      } else {
+        window.location.href = "/";
+      }
+    }
+  }, [isRedir, isAuthError, isChunkError, extractedTarget]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
-        </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
-          <button
-            onClick={() => {
-              router.invalidate();
-              reset();
-            }}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Try again
-          </button>
-          <a
-            href="/"
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-          >
-            Go home
-          </a>
-        </div>
+      <div className="flex flex-col items-center gap-3 text-center text-sm font-medium text-muted-foreground">
+        <span className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        <span>Loading Last Topper…</span>
       </div>
     </div>
   );
@@ -183,8 +256,6 @@ function RootComponent() {
     return () => remove?.();
   }, [router]);
 
-
-
   // Android hardware/system back button: go one step back in history instead
   // of closing the app or jumping home. Exits only when history is empty.
   useEffect(() => {
@@ -205,7 +276,6 @@ function RootComponent() {
     })();
     return () => remove?.();
   }, []);
-
 
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
@@ -228,4 +298,3 @@ function RootComponent() {
     </QueryClientProvider>
   );
 }
-

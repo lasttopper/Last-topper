@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import type { QuizQuestion } from "@/lib/learning.functions";
 import { aiChat } from "@/lib/ai-router";
+import { puterGenerateQuestions } from "@/lib/puter";
 
 type AnyClient = SupabaseClient<Database>;
 
@@ -81,7 +82,22 @@ export async function ensureDailyChallenge(
   try {
     questions = await aiDailyQuestions(profession, picked.map((c) => c.name));
   } catch {
-    questions = [];
+    try {
+      const puterQs = await puterGenerateQuestions(profession, picked.map((c) => c.name), DAILY_COUNT);
+      if (puterQs && puterQs.length > 0) {
+        questions = puterQs.map((q, i) => ({
+          id: `daily_puter_${Date.now()}_${i}`,
+          chapter_id: "",
+          question: q.question,
+          options: q.options,
+          correct: q.correct,
+          hint: q.hint,
+          explanation: q.explanation,
+        }));
+      }
+    } catch {
+      questions = [];
+    }
   }
   if (questions.length < 5) {
     const { sampleFromBank } = await import("@/lib/question-bank.server");

@@ -2,14 +2,30 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+function generateReferralCode(userId: string): string {
+  const cleanId = userId.replace(/-/g, "").toUpperCase();
+  const rand = Math.floor(1000 + Math.random() * 9000);
+  return `TOPPER-${cleanId.slice(0, 4)}${rand}`;
+}
+
 export const getMyReferral = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data: me } = await context.supabase
+    let { data: me } = await context.supabase
       .from("users")
       .select("referral_code, referred_by, mega_credits")
       .eq("id", context.userId)
       .maybeSingle();
+
+    let code = (me?.referral_code as string | null) ?? null;
+
+    if (!code) {
+      code = generateReferralCode(context.userId);
+      await context.supabase
+        .from("users")
+        .update({ referral_code: code })
+        .eq("id", context.userId);
+    }
 
     const { count } = await context.supabase
       .from("users")
@@ -26,7 +42,7 @@ export const getMyReferral = createServerFn({ method: "GET" })
     const MILESTONE = 10;
 
     return {
-      code: (me?.referral_code as string | null) ?? null,
+      code,
       referred_by: (me?.referred_by as string | null) ?? null,
       mega_credits: Number(me?.mega_credits ?? 0),
       invited: count ?? 0,
@@ -94,4 +110,3 @@ export const applyReferralCode = createServerFn({ method: "POST" })
     if (error) return { ok: false as const, error: "Could not apply referral code" };
     return { ok: true as const };
   });
-

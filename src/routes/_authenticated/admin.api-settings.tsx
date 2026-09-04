@@ -5,14 +5,14 @@ import { getAdminApiSettings, saveAdminApiSettings, testAiApiConnection } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Sparkles, Key, CreditCard, Send, Zap, CheckCircle2, AlertCircle, Save, ShieldCheck, Youtube, PlayCircle } from "lucide-react";
+import { Sparkles, Key, CreditCard, Send, Zap, CheckCircle2, AlertCircle, Save, RotateCcw } from "lucide-react";
 import { failMessage } from "@/lib/friendly-error";
 
 export const Route = createFileRoute("/_authenticated/admin/api-settings")({
   head: () => ({
     meta: [
       { title: "API & Model Settings — Admin" },
-      { name: "description", content: "Configure AI models, API keys, Razorpay gateway, Sub2Unlock & Monetag, and Telegram alerts." },
+      { name: "description", content: "Configure AI models, API keys, Razorpay gateway, and Telegram alerts." },
     ],
   }),
   component: AdminApiSettingsPage,
@@ -23,6 +23,7 @@ function AdminApiSettingsPage() {
   const q = useQuery({ queryKey: ["admin-api-settings"], queryFn: () => getAdminApiSettings() });
 
   const [geminiModel, setGeminiModel] = useState("gemini-3.6-flash");
+  const [geminiKey0, setGeminiKey0] = useState("");
   const [geminiKey1, setGeminiKey1] = useState("");
   const [geminiKey2, setGeminiKey2] = useState("");
   const [geminiKey3, setGeminiKey3] = useState("");
@@ -30,6 +31,7 @@ function AdminApiSettingsPage() {
   const [openRouterKey1, setOpenRouterKey1] = useState("");
   const [openRouterKey2, setOpenRouterKey2] = useState("");
   const [xaiKey, setXaiKey] = useState("");
+  const [firecrawlKey, setFirecrawlKey] = useState("");
 
   const [omniBase, setOmniBase] = useState("");
   const [omniModel, setOmniModel] = useState("");
@@ -42,44 +44,31 @@ function AdminApiSettingsPage() {
   const [telegramKey, setTelegramKey] = useState("");
   const [telegramChatId, setTelegramChatId] = useState("");
 
-  // Sub2Unlock & Monetag state
-  const [megaSub2UnlockEnabled, setMegaSub2UnlockEnabled] = useState(true);
-  const [monetagDirectLink, setMonetagDirectLink] = useState("");
-  const [monetagScriptId, setMonetagScriptId] = useState("");
-  const [youtubeSubUrl, setYoutubeSubUrl] = useState("");
-  const [telegramChannelUrl, setTelegramChannelUrl] = useState("");
-  const [sub2UnlockTimerSec, setSub2UnlockTimerSec] = useState(10);
-
   const [testResult, setTestResult] = useState<{ ok: boolean; response?: string; latency_ms?: number; error?: string } | null>(null);
 
   useEffect(() => {
     if (q.data) {
       setGeminiModel(q.data.gemini_model || "gemini-3.6-flash");
-      setGeminiKey1(q.data.gemini_api_key_1);
-      setGeminiKey2(q.data.gemini_api_key_2);
-      setGeminiKey3(q.data.gemini_api_key_3);
+      setGeminiKey0(q.data.gemini_api_key_0 || "");
+      setGeminiKey1(q.data.gemini_api_key_1 || "");
+      setGeminiKey2(q.data.gemini_api_key_2 || "");
+      setGeminiKey3(q.data.gemini_api_key_3 || "");
 
-      setOpenRouterKey1(q.data.openrouter_api_key_1);
-      setOpenRouterKey2(q.data.openrouter_api_key_2);
-      setXaiKey(q.data.xai_api_key);
+      setOpenRouterKey1(q.data.openrouter_api_key_1 || "");
+      setOpenRouterKey2(q.data.openrouter_api_key_2 || "");
+      setXaiKey(q.data.xai_api_key || "");
+      setFirecrawlKey(q.data.firecrawl_api_key || "");
 
-      setOmniBase(q.data.omniroute_base_url);
-      setOmniModel(q.data.omniroute_model);
-      setOmniKey(q.data.omniroute_api_key_1);
+      setOmniBase(q.data.omniroute_base_url || "");
+      setOmniModel(q.data.omniroute_model || "");
+      setOmniKey(q.data.omniroute_api_key_1 || "");
 
-      setRazorpayKeyId(q.data.razorpay_key_id);
-      setRazorpayKeySecret(q.data.razorpay_key_secret);
-      setRazorpayWebhookSecret(q.data.razorpay_webhook_secret);
+      setRazorpayKeyId(q.data.razorpay_key_id || "");
+      setRazorpayKeySecret(q.data.razorpay_key_secret || "");
+      setRazorpayWebhookSecret(q.data.razorpay_webhook_secret || "");
 
-      setTelegramKey(q.data.telegram_api_key);
-      setTelegramChatId(q.data.report_telegram_chat_id);
-
-      setMegaSub2UnlockEnabled(q.data.mega_sub2unlock_enabled !== false);
-      setMonetagDirectLink(q.data.monetag_direct_link || "");
-      setMonetagScriptId(q.data.monetag_script_id || "");
-      setYoutubeSubUrl(q.data.youtube_sub_url || "");
-      setTelegramChannelUrl(q.data.telegram_channel_url || "");
-      setSub2UnlockTimerSec(q.data.sub2unlock_timer_sec || 10);
+      setTelegramKey(q.data.telegram_api_key || "");
+      setTelegramChatId(q.data.report_telegram_chat_id || "");
     }
   }, [q.data]);
 
@@ -88,12 +77,14 @@ function AdminApiSettingsPage() {
       saveAdminApiSettings({
         data: {
           gemini_model: geminiModel,
+          gemini_api_key_0: geminiKey0,
           gemini_api_key_1: geminiKey1,
           gemini_api_key_2: geminiKey2,
           gemini_api_key_3: geminiKey3,
           openrouter_api_key_1: openRouterKey1,
           openrouter_api_key_2: openRouterKey2,
           xai_api_key: xaiKey,
+          firecrawl_api_key: firecrawlKey,
           omniroute_base_url: omniBase,
           omniroute_model: omniModel,
           omniroute_api_key_1: omniKey,
@@ -102,12 +93,6 @@ function AdminApiSettingsPage() {
           razorpay_webhook_secret: razorpayWebhookSecret,
           telegram_api_key: telegramKey,
           report_telegram_chat_id: telegramChatId,
-          mega_sub2unlock_enabled: megaSub2UnlockEnabled,
-          monetag_direct_link: monetagDirectLink,
-          monetag_script_id: monetagScriptId,
-          youtube_sub_url: youtubeSubUrl,
-          telegram_channel_url: telegramChannelUrl,
-          sub2unlock_timer_sec: sub2UnlockTimerSec,
         },
       }),
     onSuccess: (res) => {
@@ -142,7 +127,7 @@ function AdminApiSettingsPage() {
             <Key className="h-5 w-5 text-primary" /> API & System Settings
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Configure AI models, Razorpay payments, Sub2Unlock & Monetag ad links, and Telegram alerts.
+            Configure AI models, Razorpay payments, and Telegram alerts.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -180,101 +165,6 @@ function AdminApiSettingsPage() {
         </div>
       )}
 
-      {/* Sub2Unlock & Monetag Ad Gate Configuration */}
-      <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5 space-y-4">
-        <div className="flex items-center justify-between border-b border-border pb-3">
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5 text-amber-500" />
-            <div>
-              <h2 className="text-sm font-semibold">Sunday Mega Test Sub2Unlock & Monetag Ads Gate</h2>
-              <p className="text-[11px] text-muted-foreground">
-                Require users to complete steps (YouTube subscribe, Monetag ad link, Telegram) before registering for Sunday Mega Test.
-              </p>
-            </div>
-          </div>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-              checked={megaSub2UnlockEnabled}
-              onChange={(e) => setMegaSub2UnlockEnabled(e.target.checked)}
-            />
-            <span className="text-xs font-bold text-foreground">
-              {megaSub2UnlockEnabled ? "Gate Enabled" : "Gate Disabled"}
-            </span>
-          </label>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
-              <PlayCircle className="h-3.5 w-3.5 text-amber-500" /> Monetag Direct Link URL
-            </label>
-            <Input
-              type="text"
-              placeholder="https://sub2unlock.io/ACWbm or Monetag Direct Link"
-              className="mt-1 font-mono text-xs"
-              value={monetagDirectLink}
-              onChange={(e) => setMonetagDirectLink(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
-              <PlayCircle className="h-3.5 w-3.5 text-amber-500" /> Monetag Script Zone ID (Optional)
-            </label>
-            <Input
-              type="text"
-              placeholder="e.g. 1234567"
-              className="mt-1 font-mono text-xs"
-              value={monetagScriptId}
-              onChange={(e) => setMonetagScriptId(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
-              <Youtube className="h-3.5 w-3.5 text-red-500" /> YouTube Channel Subscribe URL
-            </label>
-            <Input
-              type="text"
-              placeholder="https://youtube.com/@LastTopper"
-              className="mt-1 font-mono text-xs"
-              value={youtubeSubUrl}
-              onChange={(e) => setYoutubeSubUrl(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
-              <Send className="h-3.5 w-3.5 text-sky-500" /> Telegram Channel URL
-            </label>
-            <Input
-              type="text"
-              placeholder="https://t.me/LastTopper"
-              className="mt-1 font-mono text-xs"
-              value={telegramChannelUrl}
-              onChange={(e) => setTelegramChannelUrl(e.target.value)}
-            />
-          </div>
-
-          <div className="sm:col-span-2">
-            <label className="text-xs font-medium text-foreground">Step Timer Duration (Seconds)</label>
-            <p className="text-[11px] text-muted-foreground mb-1">
-              Minimum seconds a user must wait per step while verifying completion.
-            </p>
-            <Input
-              type="number"
-              min={3}
-              max={60}
-              className="font-mono text-xs w-32"
-              value={sub2UnlockTimerSec}
-              onChange={(e) => setSub2UnlockTimerSec(Number(e.target.value))}
-            />
-          </div>
-        </div>
-      </div>
-
       {/* 1. Google Gemini AI Model & Keys */}
       <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
         <div className="flex items-center justify-between border-b border-border pb-3">
@@ -299,25 +189,62 @@ function AdminApiSettingsPage() {
               onChange={(e) => setGeminiModel(e.target.value)}
             >
               <option value="gemini-3.6-flash">gemini-3.6-flash (Recommended · Next-Gen Speed & Accuracy)</option>
-              <option value="gemini-3.5-flash">gemini-3.5-flash</option>
-              <option value="gemini-2.5-flash">gemini-2.5-flash</option>
-              <option value="gemini-2.5-pro">gemini-2.5-pro (High Reasoning)</option>
-              <option value="gemini-flash-lite-latest">gemini-flash-lite-latest (Ultra Low Latency)</option>
+              <option value="gemini-2.0-flash">gemini-2.0-flash (Fast & Accurate)</option>
+              <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite (Ultra Low Latency)</option>
+              <option value="gemini-1.5-pro">gemini-1.5-pro (High Reasoning)</option>
             </select>
           </div>
 
           <div>
             <label className="text-xs font-medium text-muted-foreground flex items-center justify-between">
-              <span>GEMINI_API_KEY_1 (Primary)</span>
+              <span>GEMINI_API_KEY_0 (Root / Primary Key 0)</span>
+              {q.data?.has_gemini_0 && <span className="text-[10px] text-emerald-500 font-bold">✓ Active</span>}
+            </label>
+            <div className="relative mt-1 flex items-center gap-1">
+              <Input
+                type="text"
+                placeholder="Paste AIzaSy... to change"
+                className="font-mono text-xs pr-12"
+                value={geminiKey0}
+                onChange={(e) => setGeminiKey0(e.target.value)}
+              />
+              {geminiKey0 && (
+                <button
+                  type="button"
+                  onClick={() => setGeminiKey0("")}
+                  className="text-[10px] font-semibold text-muted-foreground hover:text-foreground px-2 py-1 bg-muted rounded"
+                  title="Clear key to edit"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-medium text-muted-foreground flex items-center justify-between">
+              <span>GEMINI_API_KEY_1 (Primary Key 1)</span>
               {q.data?.has_gemini_1 && <span className="text-[10px] text-emerald-500 font-bold">✓ Active</span>}
             </label>
-            <Input
-              type="text"
-              placeholder="AIzaSy..."
-              className="mt-1 font-mono text-xs"
-              value={geminiKey1}
-              onChange={(e) => setGeminiKey1(e.target.value)}
-            />
+            <div className="relative mt-1 flex items-center gap-1">
+              <Input
+                type="text"
+                placeholder="Paste AIzaSy... to change"
+                className="font-mono text-xs pr-12"
+                value={geminiKey1}
+                onChange={(e) => setGeminiKey1(e.target.value)}
+              />
+              {geminiKey1 && (
+                <button
+                  type="button"
+                  onClick={() => setGeminiKey1("")}
+                  className="text-[10px] font-semibold text-muted-foreground hover:text-foreground px-2 py-1 bg-muted rounded"
+                  title="Clear key to edit"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
           </div>
 
           <div>
@@ -325,32 +252,72 @@ function AdminApiSettingsPage() {
               <span>GEMINI_API_KEY_2 (Rotation Backup 1)</span>
               {q.data?.has_gemini_2 && <span className="text-[10px] text-emerald-500 font-bold">✓ Active</span>}
             </label>
-            <Input
-              type="text"
-              placeholder="AIzaSy..."
-              className="mt-1 font-mono text-xs"
-              value={geminiKey2}
-              onChange={(e) => setGeminiKey2(e.target.value)}
-            />
+            <div className="relative mt-1 flex items-center gap-1">
+              <Input
+                type="text"
+                placeholder="Paste AIzaSy... to change"
+                className="font-mono text-xs pr-12"
+                value={geminiKey2}
+                onChange={(e) => setGeminiKey2(e.target.value)}
+              />
+              {geminiKey2 && (
+                <button
+                  type="button"
+                  onClick={() => setGeminiKey2("")}
+                  className="text-[10px] font-semibold text-muted-foreground hover:text-foreground px-2 py-1 bg-muted rounded"
+                  title="Clear key to edit"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
           </div>
 
-          <div className="sm:col-span-2">
+          <div>
             <label className="text-xs font-medium text-muted-foreground flex items-center justify-between">
               <span>GEMINI_API_KEY_3 (Rotation Backup 2)</span>
               {q.data?.has_gemini_3 && <span className="text-[10px] text-emerald-500 font-bold">✓ Active</span>}
             </label>
-            <Input
-              type="text"
-              placeholder="AIzaSy..."
-              className="mt-1 font-mono text-xs"
-              value={geminiKey3}
-              onChange={(e) => setGeminiKey3(e.target.value)}
-            />
+            <div className="relative mt-1 flex items-center gap-1">
+              <Input
+                type="text"
+                placeholder="Paste AIzaSy... to change"
+                className="font-mono text-xs pr-12"
+                value={geminiKey3}
+                onChange={(e) => setGeminiKey3(e.target.value)}
+              />
+              {geminiKey3 && (
+                <button
+                  type="button"
+                  onClick={() => setGeminiKey3("")}
+                  className="text-[10px] font-semibold text-muted-foreground hover:text-foreground px-2 py-1 bg-muted rounded"
+                  title="Clear key to edit"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* 2. OpenRouter & xAI Grok Backup Providers */}
+      {/* Puter.js AI & Image Generation Integration */}
+      <div className="rounded-2xl border border-indigo-500/30 bg-indigo-500/5 p-5 space-y-3">
+        <div className="flex items-center justify-between border-b border-border pb-3">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-indigo-500" />
+            <h2 className="text-sm font-semibold">Puter.js AI & Image Generation Fallback</h2>
+          </div>
+          <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+            ✓ Always Active (No API Key Required)
+          </span>
+        </div>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          Puter.js (<code className="font-mono text-indigo-500">https://js.puter.com/v2/</code>) is integrated natively. Whenever Google Gemini, OpenAI DALL-E, or OpenRouter APIs are missing, rate-limited, or unavailable, Last Topper automatically routes question generation, handwritten solution image rendering, and AI coaching completions to Puter AI.
+        </p>
+      </div>
+
+      {/* 2. OpenRouter & xAI Grok Backups */}
       <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
         <div className="flex items-center gap-2 border-b border-border pb-3">
           <Key className="h-4 w-4 text-indigo-500" />
@@ -397,6 +364,20 @@ function AdminApiSettingsPage() {
               className="mt-1 font-mono text-xs"
               value={xaiKey}
               onChange={(e) => setXaiKey(e.target.value)}
+            />
+          </div>
+
+          <div className="sm:col-span-2">
+            <label className="text-xs font-medium text-muted-foreground flex items-center justify-between">
+              <span>FIRECRAWL_API_KEY (Web Search & NCERT Reference Sync)</span>
+              {q.data?.has_firecrawl && <span className="text-[10px] text-emerald-500 font-bold">✓ Active</span>}
+            </label>
+            <Input
+              type="text"
+              placeholder="fc-..."
+              className="mt-1 font-mono text-xs"
+              value={firecrawlKey}
+              onChange={(e) => setFirecrawlKey(e.target.value)}
             />
           </div>
         </div>

@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import { failMessage } from "@/lib/friendly-error";
 import { shareOrCopy } from "@/lib/native-share";
+import { ReferralCard } from "@/components/ReferralCard";
 
 export const Route = createFileRoute("/_authenticated/results/$sessionId")({
   head: () => ({
@@ -290,6 +291,7 @@ function ResultsPage() {
           </div>
         </div>
         <XpProgress className="mt-4" />
+        <ReferralCard className="mt-4" />
         <div className="mt-4 flex flex-wrap gap-2">
           <Button className="flex-1 min-w-[140px]" onClick={practiceIncorrect} disabled={starting || incorrect === 0}>
             <Repeat className="mr-2 h-4 w-4" /> Practice incorrect

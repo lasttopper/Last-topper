@@ -12,14 +12,16 @@ export const getAdminApiSettings = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertAdminCtx(context);
-    const { getAppConfig, maskSecret } = await import("@/lib/app-config.server");
-    const cfg = getAppConfig();
+    const { getAppConfigAsync, maskSecret } = await import("@/lib/app-config.server");
+    const cfg = await getAppConfigAsync();
 
     return {
-      gemini_model: cfg.gemini_model || "gemini-3.6-flash",
+      gemini_model: cfg.gemini_model || "gemini-2.5-flash",
+      gemini_api_key_0: maskSecret(cfg.gemini_api_key_0),
       gemini_api_key_1: maskSecret(cfg.gemini_api_key_1),
       gemini_api_key_2: maskSecret(cfg.gemini_api_key_2),
       gemini_api_key_3: maskSecret(cfg.gemini_api_key_3),
+      has_gemini_0: !!cfg.gemini_api_key_0,
       has_gemini_1: !!cfg.gemini_api_key_1,
       has_gemini_2: !!cfg.gemini_api_key_2,
       has_gemini_3: !!cfg.gemini_api_key_3,
@@ -31,6 +33,9 @@ export const getAdminApiSettings = createServerFn({ method: "GET" })
 
       xai_api_key: maskSecret(cfg.xai_api_key),
       has_xai: !!cfg.xai_api_key,
+
+      firecrawl_api_key: maskSecret(cfg.firecrawl_api_key),
+      has_firecrawl: !!cfg.firecrawl_api_key,
 
       omniroute_base_url: cfg.omniroute_base_url || "",
       omniroute_model: cfg.omniroute_model || "",
@@ -45,25 +50,19 @@ export const getAdminApiSettings = createServerFn({ method: "GET" })
       telegram_api_key: maskSecret(cfg.telegram_api_key),
       report_telegram_chat_id: cfg.report_telegram_chat_id || "",
       has_telegram: !!cfg.telegram_api_key,
-
-      // Sub2Unlock & Monetag Settings
-      mega_sub2unlock_enabled: cfg.mega_sub2unlock_enabled !== false,
-      monetag_direct_link: cfg.monetag_direct_link || "",
-      monetag_script_id: cfg.monetag_script_id || "",
-      youtube_sub_url: cfg.youtube_sub_url || "",
-      telegram_channel_url: cfg.telegram_channel_url || "",
-      sub2unlock_timer_sec: cfg.sub2unlock_timer_sec || 10,
     };
   });
 
 const saveSettingsSchema = z.object({
   gemini_model: z.string().optional(),
+  gemini_api_key_0: z.string().optional(),
   gemini_api_key_1: z.string().optional(),
   gemini_api_key_2: z.string().optional(),
   gemini_api_key_3: z.string().optional(),
   openrouter_api_key_1: z.string().optional(),
   openrouter_api_key_2: z.string().optional(),
   xai_api_key: z.string().optional(),
+  firecrawl_api_key: z.string().optional(),
   omniroute_base_url: z.string().optional(),
   omniroute_model: z.string().optional(),
   omniroute_api_key_1: z.string().optional(),
@@ -72,12 +71,6 @@ const saveSettingsSchema = z.object({
   razorpay_webhook_secret: z.string().optional(),
   telegram_api_key: z.string().optional(),
   report_telegram_chat_id: z.string().optional(),
-  mega_sub2unlock_enabled: z.boolean().optional(),
-  monetag_direct_link: z.string().optional(),
-  monetag_script_id: z.string().optional(),
-  youtube_sub_url: z.string().optional(),
-  telegram_channel_url: z.string().optional(),
-  sub2unlock_timer_sec: z.number().optional(),
 });
 
 export const saveAdminApiSettings = createServerFn({ method: "POST" })
@@ -94,12 +87,12 @@ export const saveAdminApiSettings = createServerFn({ method: "POST" })
         if (typeof val === "string" && val.includes("••••••••")) {
           continue;
         }
-        updatePayload[key] = val;
+        updatePayload[key] = typeof val === "string" ? val.trim() : val;
       }
     }
 
-    saveAppConfig(updatePayload);
-    return { ok: true, message: "API, Sub2Unlock & Monetag configurations saved successfully." };
+    await saveAppConfig(updatePayload, context.userId);
+    return { ok: true, message: "API configurations saved successfully." };
   });
 
 export const testAiApiConnection = createServerFn({ method: "POST" })

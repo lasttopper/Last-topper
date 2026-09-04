@@ -5,7 +5,6 @@ import confetti from "canvas-confetti";
 import { toast } from "sonner";
 import { Latex } from "@/components/Latex";
 import { useAntiCheat } from "@/hooks/useAntiCheat";
-import { useHideAds } from "@/lib/useHideAds";
 import { start1v1Battle, extendQuickBattle, submitBattle } from "@/lib/battle.functions";
 import { Timer, Users, Loader2, Swords, Flame } from "lucide-react";
 import type { QuizQuestion } from "@/lib/learning.functions";
@@ -45,7 +44,6 @@ function initials(name: string) {
 
 function OneVOne() {
   useAntiCheat(true);
-  useHideAds();
   const navigate = useNavigate();
   const profile = useUserStore((s) => s.profile);
 

@@ -5,7 +5,6 @@ import confetti from "canvas-confetti";
 import { toast } from "sonner";
 import { Latex } from "@/components/Latex";
 import { useAntiCheat } from "@/hooks/useAntiCheat";
-import { useHideAds } from "@/lib/useHideAds";
 import { startQuickBattle, extendQuickBattle, submitBattle, getQuickLeaderboard } from "@/lib/battle.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Timer, Zap, Trophy, Loader2 } from "lucide-react";
@@ -30,7 +29,6 @@ type Phase = "idle" | "countdown" | "playing" | "done";
 
 function QuickBattle() {
   useAntiCheat(true);
-  useHideAds();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const QUICK_TOTAL = 10;

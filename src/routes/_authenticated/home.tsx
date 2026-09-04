@@ -1,7 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { StreakDetailsDialog } from "@/components/StreakDetailsDialog";
-import { useMonetagAds } from "@/lib/useMonetagAds";
 
 import { useSuspenseQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getMyProfile, pingActivity } from "@/lib/user.functions";
@@ -33,7 +32,6 @@ import {
   CalendarCheck,
   Repeat2,
   ScrollText,
-
 } from "lucide-react";
 
 const profileQuery = {
@@ -52,7 +50,6 @@ export const Route = createFileRoute("/_authenticated/home")({
 
 function HomePage() {
   const navigate = useNavigate();
-  useMonetagAds();
   const qc = useQueryClient();
   const [streakOpen, setStreakOpen] = useState(false);
 
@@ -157,7 +154,6 @@ function HomePage() {
           )}
         </>
       }
-
     >
       {/* Top row: quota + stats */}
       <section className="grid gap-4 md:grid-cols-3">
@@ -211,12 +207,10 @@ function HomePage() {
         <NavTile icon={<History className="h-5 w-5" />} title="History" body="Past attempts" onClick={() => navigate({ to: "/history" })} />
       </div>
 
-
       <StreakDetailsDialog open={streakOpen} onOpenChange={setStreakOpen} fallbackStreak={p?.streak ?? 0} />
       <OnboardingFlow open={needsOnboarding} />
       <AppTour enabled={!!p && !needsOnboarding} />
       <AiChatBubble />
-
     </AppShell>
   );
 }

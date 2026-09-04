@@ -9,13 +9,6 @@
  *
  * The @theme inline block maps CSS custom properties to Tailwind utility
  * classes (e.g. --color-primary -> bg-primary, text-primary).
- *
- * The :root and .dark blocks define the actual color values using oklch.
- * All colors MUST use oklch format.
- *
- * To add a new semantic color:
- * 1. Add the variable to :root (light value) and .dark (dark value)
- * 2. Register it in @theme inline as --color-<name>: var(--<name>)
  */
 
 @theme inline {
@@ -62,26 +55,26 @@
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.129 0.042 264.695);
+  --radius: 0.75rem;
+  --background: oklch(0.985 0.005 260);
+  --foreground: oklch(0.14 0.04 265);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.129 0.042 264.695);
+  --card-foreground: oklch(0.14 0.04 265);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
-  --primary-foreground: oklch(0.984 0.003 247.858);
-  --secondary: oklch(0.968 0.007 247.896);
-  --secondary-foreground: oklch(0.208 0.042 265.755);
-  --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.554 0.046 257.417);
-  --accent: oklch(0.968 0.007 247.896);
-  --accent-foreground: oklch(0.208 0.042 265.755);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(0.929 0.013 255.508);
-  --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.704 0.04 256.788);
+  --popover-foreground: oklch(0.14 0.04 265);
+  --primary: oklch(0.55 0.22 265);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.95 0.01 260);
+  --secondary-foreground: oklch(0.20 0.04 265);
+  --muted: oklch(0.96 0.01 260);
+  --muted-foreground: oklch(0.50 0.04 260);
+  --accent: oklch(0.95 0.02 265);
+  --accent-foreground: oklch(0.20 0.04 265);
+  --destructive: oklch(0.58 0.24 27);
+  --destructive-foreground: oklch(0.99 0 0);
+  --border: oklch(0.91 0.01 260);
+  --input: oklch(0.91 0.01 260);
+  --ring: oklch(0.55 0.22 265);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -89,47 +82,47 @@
   --chart-5: oklch(0.769 0.188 70.08);
   --sidebar: oklch(0.984 0.003 247.858);
   --sidebar-foreground: oklch(0.129 0.042 264.695);
-  --sidebar-primary: oklch(0.208 0.042 265.755);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.968 0.007 247.896);
-  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
-  --sidebar-border: oklch(0.929 0.013 255.508);
-  --sidebar-ring: oklch(0.704 0.04 256.788);
+  --sidebar-primary: oklch(0.55 0.22 265);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.95 0.01 260);
+  --sidebar-accent-foreground: oklch(0.20 0.04 265);
+  --sidebar-border: oklch(0.91 0.01 260);
+  --sidebar-ring: oklch(0.55 0.22 265);
 }
 
 .dark {
-  --background: oklch(0.129 0.042 264.695);
-  --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.208 0.042 265.755);
-  --card-foreground: oklch(0.984 0.003 247.858);
-  --popover: oklch(0.208 0.042 265.755);
-  --popover-foreground: oklch(0.984 0.003 247.858);
-  --primary: oklch(0.929 0.013 255.508);
-  --primary-foreground: oklch(0.208 0.042 265.755);
-  --secondary: oklch(0.279 0.041 260.031);
-  --secondary-foreground: oklch(0.984 0.003 247.858);
-  --muted: oklch(0.279 0.041 260.031);
-  --muted-foreground: oklch(0.704 0.04 256.788);
-  --accent: oklch(0.279 0.041 260.031);
-  --accent-foreground: oklch(0.984 0.003 247.858);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.551 0.027 264.364);
+  --background: oklch(0.11 0.03 265);
+  --foreground: oklch(0.98 0.005 260);
+  --card: oklch(0.16 0.035 265);
+  --card-foreground: oklch(0.98 0.005 260);
+  --popover: oklch(0.16 0.035 265);
+  --popover-foreground: oklch(0.98 0.005 260);
+  --primary: oklch(0.62 0.22 265);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.22 0.03 265);
+  --secondary-foreground: oklch(0.98 0.005 260);
+  --muted: oklch(0.20 0.03 265);
+  --muted-foreground: oklch(0.68 0.04 260);
+  --accent: oklch(0.22 0.03 265);
+  --accent-foreground: oklch(0.98 0.005 260);
+  --destructive: oklch(0.65 0.22 25);
+  --destructive-foreground: oklch(0.99 0 0);
+  --border: oklch(0.24 0.03 265);
+  --input: oklch(0.24 0.03 265);
+  --ring: oklch(0.62 0.22 265);
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.208 0.042 265.755);
-  --sidebar-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.279 0.041 260.031);
-  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.551 0.027 264.364);
+  --sidebar: oklch(0.16 0.035 265);
+  --sidebar-foreground: oklch(0.98 0.005 260);
+  --sidebar-primary: oklch(0.62 0.22 265);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.22 0.03 265);
+  --sidebar-accent-foreground: oklch(0.98 0.005 260);
+  --sidebar-border: oklch(0.24 0.03 265);
+  --sidebar-ring: oklch(0.62 0.22 265);
 }
 
 @layer base {
@@ -144,8 +137,7 @@
 }
 
 /* -------------------------------------------------------------
- * Battle theme — clean, minimal surface that lets the app-wide
- * ambient background show through. Scoped to `.battle-theme`.
+ * Battle theme — clean, minimal surface. Scoped to `.battle-theme`.
  * ------------------------------------------------------------- */
 .battle-theme {
   --neon-cyan: var(--color-primary);
@@ -211,12 +203,12 @@
 }
 @media print { .battle-theme { display: none !important; } }
 
-/* Many battle pages use hardcoded white text/borders — remap to theme. */
+/* Battle white overrides in light mode */
 html:not(.dark) .battle-theme [class*="text-white"] { color: var(--battle-fg); }
 html:not(.dark) .battle-theme [class*="border-white"] { border-color: var(--battle-border); }
-html:not(.dark) .battle-theme [class*="bg-white\\/"] { background-color: color-mix(in oklab, var(--color-foreground) 5%, transparent); }
+html:not(.dark) .battle-theme [class*="bg-white/"] { background-color: color-mix(in oklab, var(--color-foreground) 5%, transparent); }
 
-/* Light theme: darken low-contrast accent text (yellow / amber / pink / cyan / lime). */
+/* Light theme contrast fixes for saturated text */
 html:not(.dark) .text-yellow-200,
 html:not(.dark) .text-yellow-300,
 html:not(.dark) .text-yellow-400,
@@ -244,10 +236,10 @@ html:not(.dark) .text-violet-300,
 html:not(.dark) .text-purple-300,
 html:not(.dark) .text-indigo-300 { color: oklch(0.52 0.17 285); }
 
-/* Live-battle scoped: force high-contrast whites over the dark play bg. */
+/* Live-battle scoped */
 .battle-live [class*="text-white"] { color: #fff !important; }
 .battle-live [class*="border-white"] { border-color: rgba(255,255,255,0.15) !important; }
-.battle-live [class*="bg-white\\/"] { background-color: rgba(255,255,255,0.06) !important; }
+.battle-live [class*="bg-white/"] { background-color: rgba(255,255,255,0.06) !important; }
 .battle-live { color: #fff; }
 .battle-live .text-white\/85 { color: rgba(255,255,255,0.9) !important; }
 
@@ -262,10 +254,6 @@ html:not(.dark) .text-indigo-300 { color: oklch(0.52 0.17 285); }
   animation: arena-blink 1.6s ease-in-out infinite;
 }
 
-
-
-
-
 @keyframes battle-pulse {
   0%, 100% { transform: scale(1); opacity: 1; }
   50% { transform: scale(1.12); opacity: 0.8; }
@@ -277,7 +265,7 @@ html:not(.dark) .text-indigo-300 { color: oklch(0.52 0.17 285); }
 }
 .battle-theme .battle-slide-up { animation: battle-slide-up 260ms ease-out; }
 
-/* Modal panel — solid surface with a soft glow. Works in both themes. */
+/* Modal panel */
 .battle-modal {
   background: #ffffff;
   border: 1px solid rgba(124, 58, 237, 0.18);
@@ -298,9 +286,7 @@ html:not(.dark) .text-indigo-300 { color: oklch(0.52 0.17 285); }
   color: #e5e7ff;
 }
 
-/* -------------------------------------------------------------
- * Mantis-inspired elevated surfaces (used in dashboard shell).
- * ------------------------------------------------------------- */
+/* Mantis-inspired elevated surfaces */
 @utility mantis-card {
   @apply rounded-2xl border border-border bg-card;
   box-shadow:
@@ -323,8 +309,7 @@ html:not(.dark) .text-indigo-300 { color: oklch(0.52 0.17 285); }
   background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0));
 }
 
-
-/* Hide scrollbars app-wide (keep scroll functionality) */
+/* Hide scrollbars app-wide */
 * {
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -334,17 +319,4 @@ html:not(.dark) .text-indigo-300 { color: oklch(0.52 0.17 285); }
   height: 0;
   display: none;
 }
-
-/* Ad-free routes: hide any Monetag overlays/iframes injected globally */
-body[data-no-ads="1"] iframe[src*="5gvci"],
-body[data-no-ads="1"] iframe[src*="nap5k"],
-body[data-no-ads="1"] iframe[src*="n6wxm"],
-body[data-no-ads="1"] iframe[src*="monetag"],
-body[data-no-ads="1"] [id*="monetag"],
-body[data-no-ads="1"] [class*="monetag"] {
-  display: none !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
-}
-
 

@@ -3,10 +3,11 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { QuizQuestion } from "@/lib/learning.functions";
 import { aiChat } from "@/lib/ai-router";
+import { puterGenerateQuestions } from "@/lib/puter";
 
 /* ----------------------------- AI generation ----------------------------- */
 
-async function callGemini(prompt: string, count: number, model = "google/gemini-2.5-flash"): Promise<QuizQuestion[]> {
+async function callGemini(prompt: string, count: number, model = "google/gemini-3.6-flash"): Promise<QuizQuestion[]> {
   const data = await aiChat({
     model,
     messages: [
@@ -53,7 +54,7 @@ async function generateQuickBatch(profession: string, count: number, batchIdx: n
   const subjectLabel = profession === "pcm"
     ? "JEE (Physics, Chemistry, Math)" : "NEET (Physics, Chemistry, Biology)";
   const prompt = `Generate exactly ${count} exam-style MCQ for ${subjectLabel}. STRICT SOURCE: use ONLY content from official NCERT Class 11 & 12 textbooks — no non-NCERT facts. Mix chapters and difficulty. Use LaTeX ($...$ / $$...$$) for math. Return STRICT JSON: {"questions":[{"question":"...","options":{"A":"","B":"","C":"","D":""},"correct":"A|B|C|D","hint":"...","explanation":"..."}]}`;
-  const model = mode === "1v1" ? "google/gemini-3.5-flash" : "google/gemini-3.6-flash";
+  const model = mode === "1v1" ? "google/gemini-2.0-flash" : "google/gemini-2.0-flash";
   const qs = await callGemini(prompt, count, model);
   return qs.map((q, i) => ({ ...q, id: `bq_${Date.now()}_${batchIdx}_${i}` }));
 }
@@ -72,6 +73,23 @@ async function generateWithFallback(
     void saveToBank(supabaseAdmin, profession, qs, null);
     return qs;
   } catch (e) {
+    try {
+      const puterQs = await puterGenerateQuestions(profession, ["Physics", "Chemistry", "Biology/Math"], count);
+      if (puterQs && puterQs.length > 0) {
+        const mapped = puterQs.map((q, i) => ({
+          id: `bq_puter_${Date.now()}_${batchIdx}_${i}`,
+          chapter_id: "",
+          question: q.question,
+          options: q.options,
+          correct: q.correct,
+          hint: q.hint,
+          explanation: q.explanation,
+        }));
+        void saveToBank(supabaseAdmin, profession, mapped, null);
+        return mapped;
+      }
+    } catch { /* proceed to bank */ }
+
     const bank = await sampleFromBank(supabaseAdmin, profession, count);
     if (bank.length >= Math.min(count, 3)) return bank;
     throw e;
@@ -261,20 +279,6 @@ function nextSundayIST(): { start: Date; end: Date } {
   return { start: now, end: now };
 }
 
-export const getMegaSub2UnlockConfig = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async () => {
-    const { getAppConfig } = await import("@/lib/app-config.server");
-    const cfg = getAppConfig();
-    return {
-      enabled: cfg.mega_sub2unlock_enabled !== false,
-      monetag_direct_link: cfg.monetag_direct_link || "https://sub2unlock.io",
-      monetag_script_id: cfg.monetag_script_id || "",
-      youtube_sub_url: cfg.youtube_sub_url || "https://youtube.com/@LastTopper",
-      telegram_channel_url: cfg.telegram_channel_url || "https://t.me/LastTopper",
-      timer_seconds: cfg.sub2unlock_timer_sec || 10,
-    };
-  });
 
 export const getUpcomingMegaTest = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])

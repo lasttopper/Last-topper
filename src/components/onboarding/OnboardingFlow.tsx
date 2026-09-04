@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Atom, Dna, Timer, Brain, BookMarked } from "lucide-react";
+import { Atom, Dna, Timer, Brain, BookMarked, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { saveSignupDetails, setProfession, completeOnboarding } from "@/lib/user.functions";
 import { applyReferralCode } from "@/lib/referral.functions";
@@ -15,21 +15,95 @@ import { failMessage } from "@/lib/friendly-error";
 
 type Step = "details" | "profession" | "tutorial";
 
+const DRAFT_KEY = "last_topper_onboarding_draft";
+
+type OnboardingDraft = {
+  step: Step;
+  fullName: string;
+  dob: string;
+  phone: string;
+  refCode: string;
+  acceptTerms: boolean;
+  prof: Profession | null;
+  tutorialStep: number;
+};
+
+function loadDraft(): Partial<OnboardingDraft> | null {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function saveDraft(draft: OnboardingDraft) {
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  } catch {
+    /* silent */
+  }
+}
+
+function clearDraft() {
+  try {
+    localStorage.removeItem(DRAFT_KEY);
+  } catch {
+    /* silent */
+  }
+}
+
 export function OnboardingFlow({ open }: { open: boolean }) {
   const patch = useUserStore((s) => s.patchProfile);
   const profile = useUserStore((s) => s.profile);
-  const [step, setStep] = useState<Step>(
-    profile?.full_name && profile?.date_of_birth && profile?.phone ? "profession" : "details",
-  );
-  const [fullName, setFullName] = useState(profile?.full_name ?? "");
-  const [dob, setDob] = useState<string>("");
-  const [phone, setPhone] = useState(profile?.phone ?? "");
 
-  const [acceptTerms, setAcceptTerms] = useState(false);
+  // Load saved draft on mount if available
+  const initialDraft = loadDraft();
+
+  const [step, setStep] = useState<Step>(() => {
+    if (initialDraft?.step) return initialDraft.step;
+    if (profile?.full_name && profile?.date_of_birth && profile?.phone) return "profession";
+    return "details";
+  });
+
+  const [fullName, setFullName] = useState<string>(
+    () => initialDraft?.fullName ?? profile?.full_name ?? ""
+  );
+  const [dob, setDob] = useState<string>(() => initialDraft?.dob ?? "");
+  const [phone, setPhone] = useState<string>(
+    () => initialDraft?.phone ?? profile?.phone ?? ""
+  );
+  const [acceptTerms, setAcceptTerms] = useState<boolean>(
+    () => initialDraft?.acceptTerms ?? false
+  );
+  const [prof, setProf] = useState<Profession | null>(
+    () => initialDraft?.prof ?? profile?.profession ?? null
+  );
+  const [tutorialStep, setTutorialStep] = useState<number>(
+    () => initialDraft?.tutorialStep ?? 0
+  );
+  const [refCode, setRefCode] = useState<string>(
+    () => initialDraft?.refCode ?? getPendingReferral()
+  );
+
   const [saving, setSaving] = useState(false);
-  const [prof, setProf] = useState<Profession | null>(profile?.profession ?? null);
-  const [tutorialStep, setTutorialStep] = useState(0);
-  const [refCode, setRefCode] = useState(() => getPendingReferral());
+  const [hasResumedDraft] = useState<boolean>(() => Boolean(initialDraft));
+
+  // Auto-save draft on any input or step change
+  useEffect(() => {
+    if (!open) return;
+    saveDraft({
+      step,
+      fullName,
+      dob,
+      phone,
+      refCode,
+      acceptTerms,
+      prof,
+      tutorialStep,
+    });
+  }, [open, step, fullName, dob, phone, refCode, acceptTerms, prof, tutorialStep]);
 
   async function submitDetails() {
     if (fullName.trim().length < 2) {
@@ -110,6 +184,7 @@ export function OnboardingFlow({ open }: { open: boolean }) {
     try {
       await completeOnboarding();
       patch({ onboarded: true });
+      clearDraft(); // Onboarding complete, clear draft!
       toast.success("Welcome to Last Topper!");
     } catch (e) {
       console.error(e);
@@ -128,6 +203,13 @@ export function OnboardingFlow({ open }: { open: boolean }) {
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
+        {hasResumedDraft && (
+          <div className="flex items-center gap-1.5 bg-primary/10 px-4 py-2 text-xs font-semibold text-primary border-b border-primary/20">
+            <RotateCcw className="h-3.5 w-3.5" />
+            <span>Resumed your saved registration step!</span>
+          </div>
+        )}
+
         <AnimatePresence mode="wait">
           {step === "details" && (
             <motion.div
@@ -188,7 +270,7 @@ export function OnboardingFlow({ open }: { open: boolean }) {
                   <Input
                     className="mt-1 font-mono uppercase tracking-widest"
                     value={refCode}
-                    onChange={(e) => setRefCode(e.target.toUpperCase())}
+                    onChange={(e) => setRefCode(e.target.value.toUpperCase())}
                     placeholder="e.g. ABCD1234"
                     maxLength={16}
                   />

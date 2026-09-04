@@ -36,7 +36,7 @@ export const getProStudyPlan = createServerFn({ method: "GET" })
     const list = weak.map((w) => `${w.chapter} (${w.accuracy.toFixed(0)}%)`).join(", ");
     try {
       const plan = await aiChatText({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-3.6-flash",
         messages: [
           {
             role: "system",

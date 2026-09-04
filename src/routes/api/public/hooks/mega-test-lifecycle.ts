@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { aiChat } from "@/lib/ai-router";
+import { puterGenerateQuestions } from "@/lib/puter";
 
 type MegaQuestion = {
   id: string;
@@ -15,7 +16,7 @@ async function callGeminiMega(count: number, batchIdx: number): Promise<MegaQues
   const prompt = `Generate exactly ${count} NCERT-only exam-style MCQ covering ONLY Physics and Chemistry (Class 11 & 12). Mix chapters and difficulty (30/40/30). Use LaTeX ($...$ / $$...$$). This is batch #${batchIdx + 1}; produce a fresh unique set. Return STRICT JSON: {"questions":[{"question":"...","options":{"A":"","B":"","C":"","D":""},"correct":"A|B|C|D","hint":"...","explanation":"..."}]}`;
   try {
     const data = await aiChat({
-      model: "google/gemini-2.5-flash",
+      model: "google/gemini-3.6-flash",
       messages: [
         { role: "system", content: "You are an NCERT-only exam question generator. Physics and Chemistry only. Output STRICT JSON only." },
         { role: "user", content: prompt },
@@ -34,7 +35,20 @@ async function callGeminiMega(count: number, batchIdx: number): Promise<MegaQues
       explanation: q.explanation ?? "",
     }));
   } catch {
-    return [];
+    try {
+      const puterQs = await puterGenerateQuestions("pcm", ["Physics", "Chemistry"], count);
+      return puterQs.map((q, i) => ({
+        id: `mq_puter_${Date.now()}_${batchIdx}_${i}`,
+        chapter_id: "",
+        question: q.question,
+        options: q.options,
+        correct: q.correct,
+        hint: q.hint ?? "",
+        explanation: q.explanation ?? "",
+      }));
+    } catch {
+      return [];
+    }
   }
 }
 

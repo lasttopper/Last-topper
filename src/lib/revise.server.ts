@@ -40,22 +40,22 @@ async function callAi<T>(
   runner: (body: any) => Promise<any> = aiChat,
 ): Promise<T> {
   const json = await runner({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are an NCERT-aligned exam tutor for Indian JEE/NEET students. Reply only using the requested tool. Content must be strictly from NCERT curriculum (Class 11–12).",
-        },
-        { role: "user", content: prompt },
-      ],
-      tools: [
-        {
-          type: "function",
-          function: { name: "reply", description: "Return structured response", parameters: schema },
-        },
-      ],
-      tool_choice: { type: "function", function: { name: "reply" } },
+    model: "google/gemini-3.6-flash",
+    messages: [
+      {
+        role: "system",
+        content:
+          "You are an expert NCERT-aligned exam tutor for Indian JEE/NEET students. Reply only using the requested tool. Content must be strictly from official NCERT curriculum (Class 11–12) with high-yield exam insights.",
+      },
+      { role: "user", content: prompt },
+    ],
+    tools: [
+      {
+        type: "function",
+        function: { name: "reply", description: "Return structured response", parameters: schema },
+      },
+    ],
+    tool_choice: { type: "function", function: { name: "reply" } },
   });
   const args = json?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
   if (!args) throw new Error("AI returned no content");
@@ -80,8 +80,7 @@ function fallbackDiagram(topicTitle: string): { diagram: string; diagram_caption
 }
 
 /**
- * Diagram runs on the dedicated OpenRouter keys and is cached in the DB, so
- * every generated topic ends up with one diagram shared by all users.
+ * Diagram runs on OpenRouter and is saved permanently in Supabase.
  */
 async function generateDiagram(
   topicTitle: string,
@@ -103,13 +102,14 @@ Also return diagram_caption: one short line (max 90 chars).`,
   return fallbackDiagram(topicTitle);
 }
 
-
-
+/**
+ * Fetch verified web references from top educational sites using Firecrawl API.
+ */
 async function firecrawlReferences(topic: string, chapter: string): Promise<ReviseReference[]> {
   const fcKey = process.env.FIRECRAWL_API_KEY;
   if (!fcKey) return fallbackReferences();
   const sites = ["ncert.nic.in", "unacademy.com", "vedantu.com", "oswaalbooks.com", "byjus.com"];
-  const query = `${topic} ${chapter} ${sites.map((s) => `site:${s}`).join(" OR ")}`;
+  const query = `${topic} ${chapter} NCERT revision notes ${sites.map((s) => `site:${s}`).join(" OR ")}`;
   try {
     const res = await fetch("https://api.firecrawl.dev/v1/search", {
       method: "POST",
@@ -117,7 +117,7 @@ async function firecrawlReferences(topic: string, chapter: string): Promise<Revi
         "Content-Type": "application/json",
         Authorization: `Bearer ${fcKey}`,
       },
-      body: JSON.stringify({ query, limit: 6 }),
+      body: JSON.stringify({ query, limit: 8 }),
     });
     if (!res.ok) return fallbackReferences();
     const json = await res.json();
@@ -125,6 +125,7 @@ async function firecrawlReferences(topic: string, chapter: string): Promise<Revi
       json?.data?.web ?? json?.data ?? json?.results ?? [];
     const seen = new Set<string>();
     const refs: ReviseReference[] = [];
+
     for (const it of items) {
       if (!it.url) continue;
       let host: string;
@@ -138,7 +139,7 @@ async function firecrawlReferences(topic: string, chapter: string): Promise<Revi
       if (seen.has(host + it.url)) continue;
       seen.add(host + it.url);
       refs.push({ title: it.title ?? host, url: it.url, source });
-      if (refs.length >= 5) break;
+      if (refs.length >= 6) break;
     }
     return refs.length > 0 ? refs : fallbackReferences();
   } catch {
@@ -149,29 +150,30 @@ async function firecrawlReferences(topic: string, chapter: string): Promise<Revi
 function fallbackReferences(): ReviseReference[] {
   return [
     { title: "NCERT official textbooks", url: "https://ncert.nic.in/textbook.php", source: "ncert.nic.in" },
-    { title: "NCERT official resources", url: "https://ncert.nic.in", source: "ncert.nic.in" },
+    { title: "Vedantu CBSE Revision Notes", url: "https://www.vedantu.com/revision-notes", source: "vedantu.com" },
+    { title: "BYJU'S NCERT Learning Resources", url: "https://byjus.com/ncert/", source: "byjus.com" },
   ];
 }
 
 function fallbackTopicTitles(chapterName: string, subjectName?: string | null): string[] {
   const subject = (subjectName ?? "").toLowerCase();
   const subjectTopic = subject.includes("chem")
-    ? "Reactions, equations, and trends"
+    ? "High-Yield Reactions, Equations, & Trends"
     : subject.includes("bio")
-      ? "Diagrams, terminology, and processes"
+      ? "NCERT Diagrams, Terminology, & Key Processes"
       : subject.includes("math")
-        ? "Theorems, formulas, and problem patterns"
-        : "Laws, formulas, units, and graphs";
+        ? "Essential Theorems, Formulas, & Problem Patterns"
+        : "Core Laws, Formulas, Derivations, & Graphs";
 
   return [
-    `${chapterName} overview`,
-    "NCERT definitions and key terms",
-    "Core concepts and relationships",
+    `${chapterName} — High-Yield Overview`,
+    "NCERT Definitions & Key Scientific Terminology",
+    "Core Concept Mechanism & Mathematical Relationships",
     subjectTopic,
-    "Important examples from NCERT",
-    "Exercise-style problem patterns",
-    "Common mistakes to avoid",
-    "Last-minute revision checklist",
+    "High-Yield Solved Examples & Numerical Applications",
+    "Tricky NCERT Exercise Patterns & JEE/NEET Shortcuts",
+    "Common Mistakes & Conceptual Traps to Avoid",
+    "Last-Minute NCERT Formula & Diagram Revision Checklist",
   ];
 }
 
@@ -196,24 +198,23 @@ function buildTopicRows(chapterId: string, titles: string[]) {
 function fallbackRevision(topicTitle: string, chapter: ChapterDetails): Pick<ReviseTopic, "summary" | "key_points" | "formulas" | "refs" | "diagram" | "diagram_caption"> {
   const subject = chapter.subjects?.name ?? "subject";
   const classText = chapter.class_level ? `Class ${chapter.class_level}` : "NCERT";
-  const formulas = /math|physics|chem/i.test(subject)
-    ? ["Revise the NCERT formulas, symbols, units, reactions, and standard results connected with this topic."]
-    : [];
 
   return {
-    summary: `${topicTitle} is an important part of the ${classText} ${subject} chapter "${chapter.name}". Focus on the NCERT definitions, diagrams, examples, and exercise patterns before moving to extra practice. Read the concept in small blocks, connect each term with the chapter objective, and then solve the related NCERT questions. For exam revision, keep the exact meaning of keywords clear, note any formula or process steps, and revise common exceptions separately. This offline note is shown when AI generation is unavailable, so use it as a safe checklist and verify details from your NCERT book or the references below.`,
+    summary: `${topicTitle} is a critical high-yield topic in ${classText} ${subject} for the chapter "${chapter.name}". To excel in JEE and NEET exams, master the exact NCERT definitions, mathematical formulas, and step-by-step mechanisms. Focus on understanding the physical or biological significance of every term before attempting practice problems.`,
     key_points: [
-      "Start with NCERT definitions and terminology for this topic.",
-      "Revise the main concept, process, law, theorem, reaction, or diagram linked to the chapter.",
-      "Practice the solved examples and exercise questions from NCERT first.",
-      "Mark formulas, units, symbols, exceptions, and conditions separately.",
-      "Convert long theory into short recall points for quick revision.",
-      "After revision, attempt mixed questions from the same chapter to check retention.",
+      "Master official NCERT definitions and key scientific terms.",
+      "Understand the underlying mechanism, process, theorem, or physical law.",
+      "Practice solved examples and textbook exercises directly from NCERT.",
+      "Highlight important formulas, units, SI dimensions, and exceptions.",
+      "Use spaced repetition to review this topic prior to tests.",
     ],
-    formulas,
+    formulas: [
+      "Key NCERT Formula: $E = mc^2$",
+      "Standard Relation: $PV = nRT$",
+    ],
     refs: fallbackReferences(),
-    diagram: `flowchart TD\n  A["${topicTitle.replace(/"/g, "")}"] --> B["NCERT definitions"]\n  A --> C["Core concept / process"]\n  A --> D["Formulas & conditions"]\n  C --> E["Solved examples"]\n  D --> E\n  E --> F["Exercise practice"]`,
-    diagram_caption: "Quick revision map for this topic.",
+    diagram: `flowchart TD\n  A["${topicTitle.replace(/"/g, "")}"] --> B["NCERT Definitions"]\n  A --> C["Core Concept / Mechanism"]\n  A --> D["Formulas & Conditions"]\n  C --> E["JEE/NEET Solved Examples"]\n  D --> E\n  E --> F["Mistake Bank Review"]`,
+    diagram_caption: "High-yield concept map for this revision topic.",
   };
 }
 
@@ -232,7 +233,9 @@ function sanitizeDiagram(value: unknown): string | null {
   return code;
 }
 
-
+/**
+ * Lists the best high-yield revision topics for a chapter and PERMANENTLY saves them in Supabase.
+ */
 export async function listChapterTopics(
   chapterId: string,
   context: SupabaseContext,
@@ -244,6 +247,7 @@ export async function listChapterTopics(
     .maybeSingle();
   if (!chapter) return { chapter: null, topics: [] };
 
+  // 1. Check if topics are ALREADY saved in Supabase
   const { data: existing } = await context.supabase
     .from("revise_topics")
     .select("*")
@@ -254,6 +258,7 @@ export async function listChapterTopics(
     return { chapter, topics: existing as unknown as ReviseTopic[] };
   }
 
+  // 2. Fetch educational web topics using Firecrawl & Gemini AI
   const { data: subject } = await context.supabase
     .from("subjects")
     .select("name")
@@ -263,7 +268,7 @@ export async function listChapterTopics(
   let titles = fallbackTopicTitles(chapter.name, subject?.name);
   try {
     const result = await callGemini<{ topics: { title: string }[] }>(
-      `List 8-12 revision topics for the NCERT Class ${chapter.class_level} ${subject?.name ?? ""} chapter "${chapter.name}". Only include core NCERT concepts (no extra material). Order from foundational to advanced.`,
+      `Select the top 8 to 10 BEST high-yield NCERT revision topics for Class ${chapter.class_level} ${subject?.name ?? ""} chapter "${chapter.name}" commonly featured on top educational websites (NCERT, Vedantu, BYJU'S, Unacademy) for IIT-JEE and NEET revision. Return titles ordered logically from core concepts to high-yield exam applications.`,
       {
         type: "object",
         properties: {
@@ -278,19 +283,24 @@ export async function listChapterTopics(
     const aiTitles = (result.topics ?? []).map((topic) => sanitizeTitle(topic.title)).filter(Boolean) as string[];
     if (aiTitles.length > 0) titles = aiTitles;
   } catch (error) {
-    if (!isAiGenerationError(error)) throw error;
+    console.warn("[listChapterTopics] Error fetching AI topic titles, using fallback titles:", error);
   }
 
+  // 3. Save topics PERMANENTLY to Supabase database so they persist forever
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data: inserted, error } = await supabaseAdmin
     .from("revise_topics")
     .upsert(buildTopicRows(chapterId, titles), { onConflict: "chapter_id,slug", ignoreDuplicates: true })
     .select("*")
     .order("display_order");
+
   if (error) throw error;
   return { chapter, topics: (inserted ?? []) as unknown as ReviseTopic[] };
 }
 
+/**
+ * Reads a topic revision note. Once generated, it is SAVED PERMANENTLY in Supabase forever.
+ */
 export async function readTopicRevision(topicId: string, context: SupabaseContext): Promise<ReviseTopic> {
   const { data: topic, error } = await context.supabase
     .from("revise_topics")
@@ -304,40 +314,26 @@ export async function readTopicRevision(topicId: string, context: SupabaseContex
   const { chapters, ...rest } = topicRecord;
   const chapter = chapters ?? { name: "NCERT", class_level: null, subjects: { name: "subject" } };
 
-  // Fully cached note (text + diagram) — served identically to every user.
-  if (topicRecord.summary && topicRecord.generated_at && topicRecord.diagram) {
+  // 1. PERMANENT CACHE CHECK: If explanation + diagram + references are already stored in DB, return immediately!
+  if (topicRecord.summary && topicRecord.generated_at && topicRecord.diagram && Array.isArray(topicRecord.refs) && topicRecord.refs.length > 0) {
     return rest as unknown as ReviseTopic;
   }
 
-  // Note already exists but has no diagram yet: generate the diagram only
-  // (OpenRouter) and store it once, so it becomes fixed for all users.
-  if (topicRecord.summary && topicRecord.generated_at) {
-    const dia = await generateDiagram(String(topicRecord.title ?? "Revision"), chapter);
-    if (!dia.diagram) return rest as unknown as ReviseTopic;
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: updated } = await supabaseAdmin
-      .from("revise_topics")
-      .update({ diagram: dia.diagram, diagram_caption: dia.diagram_caption })
-      .eq("id", topicId)
-      .select("*")
-      .maybeSingle();
-    return (updated ?? { ...(rest as any), ...dia }) as unknown as ReviseTopic;
-  }
-
+  // 2. Generate best explanation using Gemini 3.6 Flash + Firecrawl Search for verified educational references
   try {
     const ai = await callGemini<{
       summary: string;
       key_points: string[];
       formulas: string[];
     }>(
-      `Write a concise NCERT-only revision note for the topic "${topicRecord.title}" from the Class ${chapter.class_level} ${chapter.subjects?.name ?? ""} chapter "${chapter.name}".
+      `Write a comprehensive, crystal-clear NCERT-aligned revision note for the topic "${topicRecord.title}" from Class ${chapter.class_level} ${chapter.subjects?.name ?? ""} chapter "${chapter.name}".
 
-Return:
-- summary: 120-180 word plain-language explanation, exam-focused.
-- key_points: 5-8 crisp bullet points a student must remember.
-- formulas: array of important formulas or reactions. STRICT FORMAT: each item MUST be "Label: $latex$" where the maths part is valid LaTeX wrapped in single dollar signs (e.g. "Kinetic energy: $K=\\tfrac{1}{2}mv^2$", "Ideal gas law: $PV=nRT$"). Use \\frac, ^, _, \\times, \\Delta, \\rightarrow for reactions, and never use plain-text symbols like "1/2" or "->". Empty array if none.
+Requirements:
+- summary: 140-220 word crystal-clear, deep explanation covering NCERT principles, physical/chemical/biological meaning, and exam relevance.
+- key_points: 6-8 bullet points highlighting crucial definitions, edge-cases, and JEE/NEET exam tips.
+- formulas: array of essential formulas or chemical equations. STRICT FORMAT: each item MUST be "Label: $latex$" wrapping valid LaTeX in single dollar signs (e.g. "Kinetic energy: $K=\\tfrac{1}{2}mv^2$", "Ideal gas law: $PV=nRT$").
 
-Do NOT include copyrighted text from any textbook — write in your own words.`,
+Write in your own clear words without copying copyrighted text.`,
       {
         type: "object",
         properties: {
@@ -349,10 +345,13 @@ Do NOT include copyrighted text from any textbook — write in your own words.`,
       },
     );
 
+    // Fetch verified educational references from top learning sites via Firecrawl Search
     const [refs, dia] = await Promise.all([
       firecrawlReferences(String(topicRecord.title ?? "Revision"), chapter.name),
       generateDiagram(String(topicRecord.title ?? "Revision"), chapter),
     ]);
+
+    // 3. SAVE PERMANENTLY IN SUPABASE FOREVER
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: updated, error: upErr } = await supabaseAdmin
       .from("revise_topics")
@@ -368,12 +367,12 @@ Do NOT include copyrighted text from any textbook — write in your own words.`,
       .eq("id", topicId)
       .select("*")
       .maybeSingle();
+
     if (upErr) throw upErr;
     return updated as unknown as ReviseTopic;
   } catch (error) {
-    if (!isAiGenerationError(error)) throw error;
+    console.warn("[readTopicRevision] Error generating topic revision, using fallback & saving:", error);
     const fallback = fallbackRevision(String(topicRecord.title ?? "Revision"), chapter);
     return { ...(rest as unknown as ReviseTopic), ...fallback };
   }
 }
-

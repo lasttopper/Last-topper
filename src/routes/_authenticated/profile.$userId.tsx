@@ -1,6 +1,7 @@
 import { createFileRoute, useParams, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getPublicProfile, followUser, unfollowUser } from "@/lib/community.functions";
+import { getMyProfile } from "@/lib/user.functions";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Flame, Target, Award, ArrowLeft, UserPlus, UserMinus, LogOut } from "lucide-react";
@@ -10,6 +11,7 @@ import { toast } from "sonner";
 import { failMessage } from "@/lib/friendly-error";
 import { RankBadge } from "@/components/RankBadge";
 import { SocialLinksRow } from "@/components/SocialLinks";
+import { ReferralCard } from "@/components/ReferralCard";
 
 export const Route = createFileRoute("/_authenticated/profile/$userId")({
   head: () => ({
@@ -30,7 +32,11 @@ function Profile() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const meId = useUserStore((s) => s.profile?.id);
+  const myProfile = useQuery({ queryKey: ["my-profile"], queryFn: () => getMyProfile(), staleTime: 60 * 1000 });
   const p = useQuery({ queryKey: ["profile", userId], queryFn: () => getPublicProfile({ data: { user_id: userId } }) });
+
+  const currentUserId = myProfile.data?.id || meId;
+  const isMe = currentUserId === userId;
 
   const follow = useMutation({
     mutationFn: () => followUser({ data: { user_id: userId } }),
@@ -53,7 +59,6 @@ function Profile() {
   if (p.isLoading) return <div className="p-6 text-sm">Loading…</div>;
   if (!p.data?.user) return <div className="p-6 text-sm">User not found.</div>;
   const u = p.data.user;
-  const isMe = meId === userId;
 
   return (
     <main className="min-h-screen bg-background">
@@ -101,6 +106,8 @@ function Profile() {
           <Stat icon={<Target className="h-4 w-4" />} label="Accuracy" value={`${Math.round(Number(u.total_accuracy ?? 0))}%`} />
           <Stat icon={<Award className="h-4 w-4" />} label="XP" value={String(u.reputation)} />
         </div>
+
+        {isMe && <ReferralCard className="mt-6" />}
 
         <div className="mt-6">
           <h2 className="mb-2 text-sm font-semibold text-muted-foreground">Badges</h2>

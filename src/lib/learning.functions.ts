@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { aiChat } from "@/lib/ai-router";
+import { puterGenerateQuestions } from "@/lib/puter";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
@@ -33,33 +34,37 @@ export type QuizQuestion = {
 export const getSubjectsWithChapters = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data: profile } = await context.supabase
-      .from("users")
-      .select("profession")
-      .eq("id", context.userId)
-      .maybeSingle();
-    const profession = profile?.profession;
-    if (!profession) return [] as SubjectWithChapters[];
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: profile } = await supabaseAdmin
+        .from("users")
+        .select("profession")
+        .eq("id", context.userId)
+        .maybeSingle();
+      const profession = profile?.profession || "pcm";
 
-    const { data: subjects, error: sErr } = await context.supabase
-      .from("subjects")
-      .select("id, code, name, profession, display_order")
-      .eq("profession", profession)
-      .order("display_order");
-    if (sErr) throw sErr;
+      const { data: subjects, error: sErr } = await supabaseAdmin
+        .from("subjects")
+        .select("id, code, name, profession, display_order")
+        .eq("profession", profession)
+        .order("display_order");
+      if (sErr || !subjects?.length) return [] as SubjectWithChapters[];
 
-    const { data: chapters, error: cErr } = await context.supabase
-      .from("chapters")
-      .select("id, subject_id, name, class_level, display_order")
-      .in("subject_id", (subjects ?? []).map((s) => s.id))
-      .order("class_level")
-      .order("display_order");
-    if (cErr) throw cErr;
+      const { data: chapters, error: cErr } = await supabaseAdmin
+        .from("chapters")
+        .select("id, subject_id, name, class_level, display_order")
+        .in("subject_id", subjects.map((s) => s.id))
+        .order("class_level")
+        .order("display_order");
 
-    return (subjects ?? []).map((s) => ({
-      ...s,
-      chapters: (chapters ?? []).filter((c) => c.subject_id === s.id),
-    })) as SubjectWithChapters[];
+      return subjects.map((s) => ({
+        ...s,
+        chapters: (chapters ?? []).filter((c) => c.subject_id === s.id),
+      })) as SubjectWithChapters[];
+    } catch (err) {
+      console.warn("[getSubjectsWithChapters] Fallback:", err);
+      return [] as SubjectWithChapters[];
+    }
   });
 
 const generateSchema = z.object({
@@ -211,18 +216,36 @@ export const generateQuestions = createServerFn({ method: "POST" })
     try {
       questions = await callGeminiForQuestions(chapterNames, profession, data.question_count);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      // AI failed — try the fallback bank
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { sampleFromBank } = await import("@/lib/question-bank.server");
-      const bank = await sampleFromBank(supabaseAdmin, profession, data.question_count, data.chapter_ids);
-      if (bank.length >= Math.min(data.question_count, 5)) {
-        return { questions: bank, cached: false, error: "Using saved questions (AI busy)." as const };
+      // Primary AI failed — try Puter.js AI question generator fallback
+      try {
+        const puterQs = await puterGenerateQuestions(profession, chapterNames, data.question_count);
+        if (puterQs && puterQs.length > 0) {
+          questions = puterQs.map((q, i) => ({
+            id: `q_puter_${Date.now()}_${i}`,
+            chapter_id: data.chapter_ids[i % data.chapter_ids.length],
+            question: q.question,
+            options: q.options,
+            correct: q.correct,
+            hint: q.hint,
+            explanation: q.explanation,
+          }));
+        } else {
+          throw new Error("EMPTY_PUTER");
+        }
+      } catch (puterErr) {
+        const msg = e instanceof Error ? e.message : String(e);
+        // AI & Puter failed — try the fallback bank
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { sampleFromBank } = await import("@/lib/question-bank.server");
+        const bank = await sampleFromBank(supabaseAdmin, profession, data.question_count, data.chapter_ids);
+        if (bank.length >= Math.min(data.question_count, 5)) {
+          return { questions: bank, cached: false, error: "Using saved questions (AI busy)." as const };
+        }
+        if (msg === "AI_BUSY") {
+          return { questions: [] as QuizQuestion[], cached: false, error: "AI is busy — please try again in a minute." as const };
+        }
+        throw e;
       }
-      if (msg === "AI_BUSY") {
-        return { questions: [] as QuizQuestion[], cached: false, error: "AI is busy — please try again in a minute." as const };
-      }
-      throw e;
     }
 
     questions = questions.map((q, i) => ({
@@ -289,6 +312,21 @@ async function generateBatchForSession(
     } catch { /* non-fatal */ }
     return mapped;
   } catch (e) {
+    try {
+      const puterQs = await puterGenerateQuestions(profession, chapterNames, count);
+      if (puterQs && puterQs.length > 0) {
+        return puterQs.map((q, i) => ({
+          id: `q_puter_${Date.now()}_${batchIndex}_${i}`,
+          chapter_id: chapterIds[i % chapterIds.length],
+          question: q.question,
+          options: q.options,
+          correct: q.correct,
+          hint: q.hint,
+          explanation: q.explanation,
+        }));
+      }
+    } catch { /* try bank */ }
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { sampleFromBank } = await import("@/lib/question-bank.server");
     const bank = await sampleFromBank(supabaseAdmin, profession, count, chapterIds);
@@ -561,15 +599,20 @@ export const getTodayUsage = createServerFn({ method: "GET" })
 export const getQuizHistory = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
-      .from("quiz_sessions")
-      .select("id, question_count, correct_count, incorrect_count, accuracy, time_taken_seconds, submitted_at, was_auto_submitted, chapter_ids")
-      .eq("user_id", context.userId)
-      .not("submitted_at", "is", null)
-      .order("submitted_at", { ascending: false })
-      .limit(100);
-    if (error) throw error;
-    return data ?? [];
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data, error } = await supabaseAdmin
+        .from("quiz_sessions")
+        .select("id, question_count, correct_count, incorrect_count, accuracy, time_taken_seconds, submitted_at, was_auto_submitted, chapter_ids")
+        .eq("user_id", context.userId)
+        .not("submitted_at", "is", null)
+        .order("submitted_at", { ascending: false })
+        .limit(100);
+      if (error) return [];
+      return data ?? [];
+    } catch {
+      return [];
+    }
   });
 
 export type MistakeItem = {
@@ -582,32 +625,38 @@ export type MistakeItem = {
 export const getMistakes = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
-      .from("quiz_sessions")
-      .select("id, questions, answers, submitted_at")
-      .eq("user_id", context.userId)
-      .not("submitted_at", "is", null)
-      .order("submitted_at", { ascending: false })
-      .limit(50);
-    if (error) throw error;
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data, error } = await supabaseAdmin
+        .from("quiz_sessions")
+        .select("id, questions, answers, submitted_at")
+        .eq("user_id", context.userId)
+        .not("submitted_at", "is", null)
+        .order("submitted_at", { ascending: false })
+        .limit(50);
+      if (error) return [];
 
-    const items: MistakeItem[] = [];
-    for (const s of data ?? []) {
-      const qs = (s.questions as QuizQuestion[]) ?? [];
-      const ans = (s.answers as Record<string, "A" | "B" | "C" | "D">) ?? {};
-      for (const q of qs) {
-        const chosen = ans[q.id] ?? null;
-        if (chosen !== q.correct) {
-          items.push({
-            session_id: s.id as string,
-            question: q,
-            chosen,
-            submitted_at: s.submitted_at as string,
-          });
+      const items: MistakeItem[] = [];
+      for (const s of data ?? []) {
+        const qs = (s.questions as QuizQuestion[]) ?? [];
+        const ans = (s.answers as Record<string, "A" | "B" | "C" | "D">) ?? {};
+        for (const q of qs) {
+          const chosen = ans[q.id] ?? null;
+          if (chosen !== q.correct) {
+            items.push({
+              session_id: s.id as string,
+              question: q,
+              chosen,
+              submitted_at: s.submitted_at as string,
+            });
+          }
         }
       }
+      return items;
+    } catch (err) {
+      console.warn("[getMistakes] Fallback:", err);
+      return [];
     }
-    return items;
   });
 
 export type Analytics = {
@@ -622,100 +671,113 @@ export type Analytics = {
 export const getAnalytics = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<Analytics> => {
-    const { data: sessions } = await context.supabase
-      .from("quiz_sessions")
-      .select("questions, answers, submitted_at, time_taken_seconds")
-      .eq("user_id", context.userId)
-      .not("submitted_at", "is", null)
-      .order("submitted_at", { ascending: false })
-      .limit(200);
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: sessions } = await supabaseAdmin
+        .from("quiz_sessions")
+        .select("questions, answers, submitted_at, time_taken_seconds")
+        .eq("user_id", context.userId)
+        .not("submitted_at", "is", null)
+        .order("submitted_at", { ascending: false })
+        .limit(200);
 
-    type ChAgg = { correct: number; attempted: number };
-    const chapterAgg = new Map<string, ChAgg>();
-    const studyByDay = new Map<string, number>();
-    let totalAttempted = 0;
-    let totalCorrect = 0;
+      type ChAgg = { correct: number; attempted: number };
+      const chapterAgg = new Map<string, ChAgg>();
+      const studyByDay = new Map<string, number>();
+      let totalAttempted = 0;
+      let totalCorrect = 0;
 
-    for (const s of sessions ?? []) {
-      const qs = (s.questions as QuizQuestion[]) ?? [];
-      const ans = (s.answers as Record<string, "A" | "B" | "C" | "D">) ?? {};
-      for (const q of qs) {
-        const chosen = ans[q.id];
-        if (!chosen) continue;
-        totalAttempted += 1;
-        const isCorrect = chosen === q.correct;
-        if (isCorrect) totalCorrect += 1;
-        const cur = chapterAgg.get(q.chapter_id) ?? { correct: 0, attempted: 0 };
-        cur.attempted += 1;
-        if (isCorrect) cur.correct += 1;
-        chapterAgg.set(q.chapter_id, cur);
+      for (const s of sessions ?? []) {
+        const qs = (s.questions as QuizQuestion[]) ?? [];
+        const ans = (s.answers as Record<string, "A" | "B" | "C" | "D">) ?? {};
+        for (const q of qs) {
+          const chosen = ans[q.id];
+          if (!chosen) continue;
+          totalAttempted += 1;
+          const isCorrect = chosen === q.correct;
+          if (isCorrect) totalCorrect += 1;
+          const cur = chapterAgg.get(q.chapter_id) ?? { correct: 0, attempted: 0 };
+          cur.attempted += 1;
+          if (isCorrect) cur.correct += 1;
+          chapterAgg.set(q.chapter_id, cur);
+        }
+        if (s.submitted_at) {
+          const day = new Date(s.submitted_at as string).toISOString().slice(0, 10);
+          studyByDay.set(day, (studyByDay.get(day) ?? 0) + Math.round((s.time_taken_seconds ?? 0) / 60));
+        }
       }
-      if (s.submitted_at) {
-        const day = new Date(s.submitted_at as string).toISOString().slice(0, 10);
-        studyByDay.set(day, (studyByDay.get(day) ?? 0) + Math.round((s.time_taken_seconds ?? 0) / 60));
+
+      const chapterIds = Array.from(chapterAgg.keys()).filter(Boolean);
+      const { data: chapters } = chapterIds.length
+        ? await supabaseAdmin
+            .from("chapters")
+            .select("id, name, subject_id")
+            .in("id", chapterIds)
+        : { data: [] as Array<{ id: string; name: string; subject_id: string }> };
+      const subjectIds = Array.from(new Set((chapters ?? []).map((c) => c.subject_id)));
+      const { data: subjects } = subjectIds.length
+        ? await supabaseAdmin.from("subjects").select("id, name").in("id", subjectIds)
+        : { data: [] as Array<{ id: string; name: string }> };
+      const subjectNameById = new Map((subjects ?? []).map((s) => [s.id, s.name] as const));
+      const chapterMeta = new Map(
+        (chapters ?? []).map((c) => [c.id, { name: c.name, subject: subjectNameById.get(c.subject_id) ?? "—" }] as const),
+      );
+
+      const byChapter = Array.from(chapterAgg.entries()).map(([id, v]) => {
+        const meta = chapterMeta.get(id);
+        return {
+          chapter_id: id,
+          chapter: meta?.name ?? "—",
+          subject: meta?.subject ?? "—",
+          accuracy: v.attempted > 0 ? Math.round((v.correct / v.attempted) * 1000) / 10 : 0,
+          attempted: v.attempted,
+        };
+      });
+
+      const subjectAgg = new Map<string, ChAgg>();
+      for (const [id, v] of chapterAgg.entries()) {
+        const subject = chapterMeta.get(id)?.subject ?? "—";
+        const cur = subjectAgg.get(subject) ?? { correct: 0, attempted: 0 };
+        cur.correct += v.correct;
+        cur.attempted += v.attempted;
+        subjectAgg.set(subject, cur);
       }
-    }
-
-    const chapterIds = Array.from(chapterAgg.keys()).filter(Boolean);
-    const { data: chapters } = chapterIds.length
-      ? await context.supabase
-          .from("chapters")
-          .select("id, name, subject_id")
-          .in("id", chapterIds)
-      : { data: [] as Array<{ id: string; name: string; subject_id: string }> };
-    const subjectIds = Array.from(new Set((chapters ?? []).map((c) => c.subject_id)));
-    const { data: subjects } = subjectIds.length
-      ? await context.supabase.from("subjects").select("id, name").in("id", subjectIds)
-      : { data: [] as Array<{ id: string; name: string }> };
-    const subjectNameById = new Map((subjects ?? []).map((s) => [s.id, s.name] as const));
-    const chapterMeta = new Map(
-      (chapters ?? []).map((c) => [c.id, { name: c.name, subject: subjectNameById.get(c.subject_id) ?? "—" }] as const),
-    );
-
-    const byChapter = Array.from(chapterAgg.entries()).map(([id, v]) => {
-      const meta = chapterMeta.get(id);
-      return {
-        chapter_id: id,
-        chapter: meta?.name ?? "—",
-        subject: meta?.subject ?? "—",
+      const bySubject = Array.from(subjectAgg.entries()).map(([subject, v]) => ({
+        subject,
         accuracy: v.attempted > 0 ? Math.round((v.correct / v.attempted) * 1000) / 10 : 0,
         attempted: v.attempted,
-      };
-    });
-
-    const subjectAgg = new Map<string, ChAgg>();
-    for (const [id, v] of chapterAgg.entries()) {
-      const subject = chapterMeta.get(id)?.subject ?? "—";
-      const cur = subjectAgg.get(subject) ?? { correct: 0, attempted: 0 };
-      cur.correct += v.correct;
-      cur.attempted += v.attempted;
-      subjectAgg.set(subject, cur);
-    }
-    const bySubject = Array.from(subjectAgg.entries()).map(([subject, v]) => ({
-      subject,
-      accuracy: v.attempted > 0 ? Math.round((v.correct / v.attempted) * 1000) / 10 : 0,
-      attempted: v.attempted,
-    }));
-
-    const studyTimeByDay = Array.from(studyByDay.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .slice(-14)
-      .map(([day, minutes]) => ({ day, minutes }));
-
-    const weakChapters = byChapter
-      .filter((c) => c.attempted >= 3 && c.accuracy < 40)
-      .sort((a, b) => a.accuracy - b.accuracy)
-      .map(({ chapter_id, chapter, subject, accuracy, attempted }) => ({
-        chapter_id,
-        chapter,
-        subject,
-        accuracy,
-        attempted,
       }));
 
-    const overallAccuracy = totalAttempted > 0 ? Math.round((totalCorrect / totalAttempted) * 1000) / 10 : 0;
+      const studyTimeByDay = Array.from(studyByDay.entries())
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .slice(-14)
+        .map(([day, minutes]) => ({ day, minutes }));
 
-    return { totalAttempted, overallAccuracy, bySubject, byChapter, studyTimeByDay, weakChapters };
+      const weakChapters = byChapter
+        .filter((c) => c.attempted >= 3 && c.accuracy < 40)
+        .sort((a, b) => a.accuracy - b.accuracy)
+        .map(({ chapter_id, chapter, subject, accuracy, attempted }) => ({
+          chapter_id,
+          chapter,
+          subject,
+          accuracy,
+          attempted,
+        }));
+
+      const overallAccuracy = totalAttempted > 0 ? Math.round((totalCorrect / totalAttempted) * 1000) / 10 : 0;
+
+      return { totalAttempted, overallAccuracy, bySubject, byChapter, studyTimeByDay, weakChapters };
+    } catch (err) {
+      console.warn("[getAnalytics] Fallback:", err);
+      return {
+        totalAttempted: 0,
+        overallAccuracy: 0,
+        bySubject: [],
+        byChapter: [],
+        studyTimeByDay: [],
+        weakChapters: [],
+      };
+    }
   });
 
 const reportSchema = z.object({

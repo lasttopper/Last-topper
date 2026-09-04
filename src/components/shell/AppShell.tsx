@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   Menu,
   X,
+  Gift,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,7 @@ export const defaultNavGroups = (opts: { profileUserId?: string; admin?: boolean
       title: "Social",
       items: [
         { to: "/community", label: "Community", icon: <Users className="h-4 w-4" /> },
+        { to: "/invite", label: "Invite & Earn 🎁", icon: <Gift className="h-4 w-4 text-amber-500" /> },
         { to: "/notifications", label: "Notifications", icon: <Bell className="h-4 w-4" /> },
         ...(opts.profileUserId
           ? [{

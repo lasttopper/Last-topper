@@ -6,15 +6,68 @@ import { safeFileName, sendTelegramDocument, buildReport, fmtIST, fmtDate } from
 export const getMyProfile = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
-      .from("users")
-      .select(
-        "id, email, full_name, avatar_url, country_code, phone, profession, onboarded, daily_question_limit, streak, total_accuracy, is_pro, pro_since, date_of_birth, terms_accepted_at",
-      )
-      .eq("id", context.userId)
-      .maybeSingle();
-    if (error) throw error;
-    return data;
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      let { data } = await supabaseAdmin
+        .from("users")
+        .select(
+          "id, email, full_name, avatar_url, country_code, phone, profession, onboarded, daily_question_limit, streak, total_accuracy, is_pro, pro_since, date_of_birth, terms_accepted_at",
+        )
+        .eq("id", context.userId)
+        .maybeSingle();
+
+      if (!data) {
+        const { data: newUser } = await supabaseAdmin
+          .from("users")
+          .upsert(
+            { id: context.userId, onboarded: false, daily_question_limit: 20 },
+            { onConflict: "id" },
+          )
+          .select(
+            "id, email, full_name, avatar_url, country_code, phone, profession, onboarded, daily_question_limit, streak, total_accuracy, is_pro, pro_since, date_of_birth, terms_accepted_at",
+          )
+          .maybeSingle();
+
+        data = newUser || {
+          id: context.userId,
+          email: null,
+          full_name: null,
+          avatar_url: null,
+          country_code: "+91",
+          phone: null,
+          profession: null,
+          onboarded: false,
+          daily_question_limit: 20,
+          streak: 0,
+          total_accuracy: 0,
+          is_pro: false,
+          pro_since: null,
+          date_of_birth: null,
+          terms_accepted_at: null,
+        };
+      }
+
+      return data;
+    } catch (err) {
+      console.warn("[getMyProfile] DB fetch fallback:", err);
+      return {
+        id: context.userId,
+        email: null,
+        full_name: null,
+        avatar_url: null,
+        country_code: "+91",
+        phone: null,
+        profession: null,
+        onboarded: false,
+        daily_question_limit: 20,
+        streak: 0,
+        total_accuracy: 0,
+        is_pro: false,
+        pro_since: null,
+        date_of_birth: null,
+        terms_accepted_at: null,
+      };
+    }
   });
 
 const signupSchema = z.object({
@@ -43,8 +96,10 @@ export const saveSignupDetails = createServerFn({ method: "POST" })
       throw new Error("Please enter a valid 10-digit phone number.");
     }
 
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
     // Check if phone number is already linked to another account
-    const { data: existing, error: qErr } = await context.supabase
+    const { data: existing, error: qErr } = await supabaseAdmin
       .from("users")
       .select("id")
       .eq("phone", cleanPhone)
@@ -55,7 +110,7 @@ export const saveSignupDetails = createServerFn({ method: "POST" })
       throw new Error("This phone number is already linked to another account.");
     }
 
-    const { error } = await context.supabase
+    const { error } = await supabaseAdmin
       .from("users")
       .update({
         full_name: data.full_name,
@@ -87,7 +142,8 @@ export const updatePhone = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => phoneSchema.parse(data))
   .handler(async ({ data, context }) => {
     const cleanPhone = data.phone.replace(/\D/g, "");
-    const { data: existing, error: qErr } = await context.supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: existing, error: qErr } = await supabaseAdmin
       .from("users")
       .select("id")
       .eq("phone", cleanPhone)
@@ -96,7 +152,7 @@ export const updatePhone = createServerFn({ method: "POST" })
     if (qErr) throw qErr;
     if (existing) throw new Error("This phone number is already linked to another account.");
 
-    const { error } = await context.supabase
+    const { error } = await supabaseAdmin
       .from("users")
       .update({ country_code: data.country_code, phone: cleanPhone })
       .eq("id", context.userId);
@@ -110,7 +166,8 @@ export const setProfession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => professionSchema.parse(data))
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
       .from("users")
       .update({ profession: data.profession })
       .eq("id", context.userId);
@@ -121,7 +178,8 @@ export const setProfession = createServerFn({ method: "POST" })
 export const completeOnboarding = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data: u } = await context.supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: u } = await supabaseAdmin
       .from("users")
       .select(
         "email, full_name, country_code, phone, profession, date_of_birth, terms_accepted_at, signup_alert_sent_at, created_at",
@@ -133,7 +191,7 @@ export const completeOnboarding = createServerFn({ method: "POST" })
       throw new Error("Please complete your profile before continuing.");
     }
 
-    const { error } = await context.supabase
+    const { error } = await supabaseAdmin
       .from("users")
       .update({ onboarded: true })
       .eq("id", context.userId);
@@ -163,7 +221,7 @@ export const completeOnboarding = createServerFn({ method: "POST" })
           ].join("\n"),
         );
 
-        await context.supabase
+        await supabaseAdmin
           .from("users")
           .update({ signup_alert_sent_at: new Date().toISOString() })
           .eq("id", context.userId);
@@ -178,7 +236,8 @@ export const completeOnboarding = createServerFn({ method: "POST" })
 export const pingActivity = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data: u } = await context.supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: u } = await supabaseAdmin
       .from("users")
       .select("streak, best_streak, last_streak_date")
       .eq("id", context.userId)
@@ -198,7 +257,7 @@ export const pingActivity = createServerFn({ method: "POST" })
       else nextStreak = 1;
     }
 
-    await context.supabase
+    await supabaseAdmin
       .from("users")
       .update({
         streak: nextStreak,
@@ -213,16 +272,20 @@ export const pingActivity = createServerFn({ method: "POST" })
 export const getStreakDetails = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
-      .from("users")
-      .select("streak, best_streak, last_streak_date, last_active_date")
-      .eq("id", context.userId)
-      .maybeSingle();
-    if (error) throw error;
-    return {
-      streak: Number(data?.streak ?? 0),
-      best_streak: Math.max(Number(data?.best_streak ?? 0), Number(data?.streak ?? 0)),
-      last_streak_date: (data?.last_streak_date as string | null) ?? null,
-      last_active_date: (data?.last_active_date as string | null) ?? null,
-    };
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data } = await supabaseAdmin
+        .from("users")
+        .select("streak, best_streak, last_streak_date, last_active_date")
+        .eq("id", context.userId)
+        .maybeSingle();
+      return {
+        streak: Number(data?.streak ?? 0),
+        best_streak: Math.max(Number(data?.best_streak ?? 0), Number(data?.streak ?? 0)),
+        last_streak_date: (data?.last_streak_date as string | null) ?? null,
+        last_active_date: (data?.last_active_date as string | null) ?? null,
+      };
+    } catch {
+      return { streak: 0, best_streak: 0, last_streak_date: null, last_active_date: null };
+    }
   });
