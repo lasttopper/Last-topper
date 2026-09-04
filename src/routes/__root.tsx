@@ -20,6 +20,7 @@ import {
   closeNativeBrowser,
   clearStoredOAuthState,
   nativeRouteFromUrl,
+  restoreNativeSystemBars,
 } from "@/lib/native-auth";
 
 import { Toaster } from "@/components/ui/sonner";
@@ -210,12 +211,13 @@ function RootComponent() {
   useEffect(() => {
     void registerPWA();
     storeReferralFromUrl();
+    void restoreNativeSystemBars();
   }, []);
 
   // Deep links opened while the native app
   // is running: keep the user in-app and capture any ?ref= invite code.
   useEffect(() => {
-    let remove: (() => void) | undefined;
+    const removers: Array<() => void> = [];
     void (async () => {
       try {
         const { Capacitor } = await import("@capacitor/core");
@@ -223,12 +225,14 @@ function RootComponent() {
         const { App } = await import("@capacitor/app");
         const openNativeUrl = (url: string) => {
           storeReferralFromUrl(url);
+          void restoreNativeSystemBars();
           void (async () => {
             // Google sign-in finished in the system browser and handed the
             // tokens back to the app — set the session here.
             const tokens = parseOAuthCallback(url);
             if (tokens && !tokens.error) {
               await closeNativeBrowser();
+              void restoreNativeSystemBars();
               const { data, error } = await supabase.auth.setSession({
                 access_token: tokens.access_token,
                 refresh_token: tokens.refresh_token,
@@ -245,7 +249,11 @@ function RootComponent() {
           })();
         };
         const handle = await App.addListener("appUrlOpen", ({ url }) => openNativeUrl(url));
-        remove = () => void handle.remove();
+        removers.push(() => void handle.remove());
+        const resumeHandle = await App.addListener("resume", () => {
+          void restoreNativeSystemBars();
+        });
+        removers.push(() => void resumeHandle.remove());
 
         // Handles links that launched the app from a fully closed state before
         // React and the appUrlOpen listener had mounted.
@@ -255,7 +263,7 @@ function RootComponent() {
         /* not running natively */
       }
     })();
-    return () => remove?.();
+    return () => removers.forEach((remove) => remove());
   }, [router]);
 
   // Android hardware/system back button: go one step back in history instead

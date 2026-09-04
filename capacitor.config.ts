@@ -41,6 +41,11 @@ const config: CapacitorConfig = {
     ],
   },
   plugins: {
+    StatusBar: {
+      overlaysWebView: false,
+      style: "LIGHT",
+      backgroundColor: "#ffffff",
+    },
     LocalNotifications: {
       smallIcon: "ic_stat_icon_config_sample",
       iconColor: "#4F46E5",

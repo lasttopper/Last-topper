@@ -1,12 +1,13 @@
+import { supabase } from "@/integrations/supabase/client";
+
 /**
  * Google sign-in for the native Android/iOS shell.
  *
- * Google blocks OAuth inside embedded WebViews, so on native we open the
- * OAuth broker in the system browser (Chrome Custom Tab / SFSafari).
- * The broker redirects to https://<site>/auth/callback with the tokens, which
- * is an App Link / Universal Link, so Android/iOS hand it straight back to the
- * app. `__root.tsx` picks it up via `appUrlOpen`, closes the browser and sets
- * the Supabase session.
+ * Google blocks OAuth inside embedded WebViews, so on native we ask Supabase
+ * for the provider URL without redirecting the WebView, then open that URL in
+ * the real device browser / Custom Tab. Supabase returns to /auth/callback,
+ * which either opens the installed app through Android App Links or bounces
+ * back through lasttopper:// as a fallback.
  */
 export const NATIVE_CALLBACK_PATH = "/auth/callback";
 
@@ -30,56 +31,38 @@ export async function isNativeApp(): Promise<boolean> {
   }
 }
 
-function randomState() {
-  const bytes = crypto.getRandomValues(new Uint8Array(16));
-  return [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-const STATE_KEY = "lt-oauth-state";
-
-export function readStoredOAuthState(): string | null {
-  try {
-    return window.localStorage.getItem(STATE_KEY);
-  } catch {
-    return null;
-  }
-}
-
 export function clearStoredOAuthState() {
   try {
-    window.localStorage.removeItem(STATE_KEY);
+    window.localStorage.removeItem("lt-oauth-state");
   } catch {
     /* ignore */
   }
 }
 
-/** Opens the Google consent flow in the real external browser (Chrome/Safari). */
-export async function startNativeGoogleSignIn(
-  extraParams?: Record<string, string>,
-) {
-  const state = randomState();
-  try {
-    window.localStorage.setItem(STATE_KEY, state);
-  } catch {
-    /* ignore */
-  }
+/** Opens the Google consent flow outside the WebView. */
+export async function startNativeGoogleSignIn() {
+  const redirectTo = `${window.location.origin}${NATIVE_CALLBACK_PATH}?${NATIVE_CALLBACK_MARKER}=1`;
 
-  const params = new URLSearchParams({
-    ...extraParams,
+  const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
-    redirect_uri: `${window.location.origin}${NATIVE_CALLBACK_PATH}?${NATIVE_CALLBACK_MARKER}=1`,
-    // The "native-" prefix tells the callback page to hand control back to the
-    // installed app (lasttopper:// deep link) if it opened in Chrome instead.
-    state: `native-${state}`,
+    options: {
+      redirectTo,
+      skipBrowserRedirect: true,
+      queryParams: {
+        access_type: "offline",
+        prompt: "consent",
+      },
+    },
   });
 
-  const url = `${window.location.origin}/~oauth/initiate?${params.toString()}`;
+  if (error) throw error;
+  if (!data?.url) throw new Error("Google sign-in URL was not returned.");
 
   // Preferred: hand the URL to the device's default browser app (Chrome /
   // Safari), so Google sees a real browser and the app is fully backgrounded.
   try {
     const { InAppBrowser } = await import("@capacitor/inappbrowser");
-    await InAppBrowser.openInExternalBrowser({ url });
+    await InAppBrowser.openInExternalBrowser({ url: data.url });
     return;
   } catch {
     /* plugin unavailable — fall back below */
@@ -88,13 +71,13 @@ export async function startNativeGoogleSignIn(
   // Fallback: Chrome Custom Tab / SFSafariViewController.
   try {
     const { Browser } = await import("@capacitor/browser");
-    await Browser.open({ url, presentationStyle: "popover" });
+    await Browser.open({ url: data.url, presentationStyle: "popover" });
     return;
   } catch {
     /* fall through */
   }
 
-  window.location.href = url;
+  window.location.href = data.url;
 }
 
 /** Maps a native/custom/App Link URL to an in-app route. */
@@ -109,7 +92,7 @@ export function nativeRouteFromUrl(href: string): string | null {
   if (url.protocol === `${APP_SCHEME}:`) {
     if (url.hostname === "app") return "/home";
     if (url.hostname === "auth") return `${NATIVE_CALLBACK_PATH}${url.search}${url.hash}`;
-    const customPath = `/${url.hostname}${url.pathname}${url.search}`;
+    const customPath = `/${url.hostname}${url.pathname}${url.search}${url.hash}`;
     return customPath === "/" ? "/home" : customPath;
   }
 
@@ -136,6 +119,18 @@ export async function closeNativeBrowser() {
   }
 }
 
+export async function restoreNativeSystemBars() {
+  try {
+    const { Capacitor } = await import("@capacitor/core");
+    if (!Capacitor.isNativePlatform()) return;
+    const { StatusBar, Style } = await import("@capacitor/status-bar");
+    await StatusBar.setOverlaysWebView({ overlay: false });
+    await StatusBar.setStyle({ style: Style.Light });
+    await StatusBar.setBackgroundColor({ color: "#ffffff" });
+  } catch {
+    /* status bar plugin unavailable / non-native */
+  }
+}
 
 export type OAuthCallbackTokens = {
   access_token: string;
