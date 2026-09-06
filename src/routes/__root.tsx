@@ -26,6 +26,7 @@ import {
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { AppUpdateDialog } from "@/components/AppUpdateDialog";
+import { ApkDownloadOverlay } from "@/components/ApkDownloadOverlay";
 
 function NotFoundComponent() {
   return (
@@ -299,6 +300,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
+        <ApkDownloadOverlay />
         <div className="app-surface relative z-[1]">
           <Outlet />
         </div>
