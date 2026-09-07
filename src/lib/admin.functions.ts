@@ -250,6 +250,33 @@ function normalizeYear(value: unknown) {
   return year;
 }
 
+function extractLabelledOptions(text: string): Partial<BankOptions> {
+  const matches = Array.from(
+    text.matchAll(/(?:^|[\s$])[\(\[]\s*(?:\\mathrm\{)?([ABCD])(?:\})?\s*[\)\]]\s*(?:\\quad\s*)?/g),
+  );
+  for (let i = 0; i < matches.length; i += 1) {
+    if (matches[i][1] !== "A") continue;
+    const seq: RegExpMatchArray[] = [matches[i]];
+    for (const expected of ["B", "C", "D"] as const) {
+      const next = matches.find((match) => (match.index ?? 0) > (seq[seq.length - 1]?.index ?? -1) && match[1] === expected);
+      if (!next) break;
+      seq.push(next);
+    }
+    if (seq.length !== 4) continue;
+
+    const picked: Partial<BankOptions> = {};
+    for (let j = 0; j < seq.length; j += 1) {
+      const key = seq[j][1] as BankOptionKey;
+      const start = (seq[j].index ?? 0) + seq[j][0].length;
+      const end = j + 1 < seq.length ? (seq[j + 1].index ?? text.length) : text.length;
+      const value = text.slice(start, end).replace(/\s+/g, " ").trim();
+      if (value) picked[key] = value;
+    }
+    if (OPTION_KEYS.every((key) => picked[key])) return picked;
+  }
+  return {};
+}
+
 function normalizeOptions(row: Record<string, unknown>): BankOptions | null {
   const source = readField(row, ["options", "choices", "answers", "answer_options"]);
   const fromArray = Array.isArray(source) ? source : null;
@@ -282,6 +309,12 @@ function normalizeOptions(row: Record<string, unknown>): BankOptions | null {
 
   if (optionValues.every(Boolean)) {
     return { A: optionValues[0], B: optionValues[1], C: optionValues[2], D: optionValues[3] };
+  }
+
+  const extracted = extractLabelledOptions(cleanText(readField(row, ["question", "question_text", "prompt", "stem"])));
+  const merged = OPTION_KEYS.map((key, index) => optionValues[index] || cleanText(extracted[key]));
+  if (merged.every(Boolean)) {
+    return { A: merged[0], B: merged[1], C: merged[2], D: merged[3] };
   }
 
   return null;
