@@ -89,14 +89,19 @@ function BankAdmin() {
           inserted += result.inserted;
         } catch {
           throw new Error(
-            `Upload failed near rows ${start}-${end}. Check that each question has text, four options, and a correct answer.`,
+            `Upload failed near rows ${start}-${end}. Check that each question has text, a correct answer, and four options for choice questions.`,
           );
         }
       }
       return { inserted };
     },
     onSuccess: (r) => {
-      toast.success(`Uploaded ${r.inserted} questions`);
+      const skipped = r.skipped ?? 0;
+      toast.success(
+        skipped > 0
+          ? `Uploaded ${r.inserted} questions, skipped ${skipped} already uploaded`
+          : `Uploaded ${r.inserted} questions`,
+      );
       setJson("");
       setProgress("");
       qc.invalidateQueries({ queryKey: ["bank-stats"] });
@@ -133,7 +138,8 @@ function BankAdmin() {
         <p className="mt-1 text-xs text-muted-foreground">
           Root can be an array or <code>{`{ "questions": [...] }`}</code>. Each item needs <code>question</code>,
           four <code>options</code> (A/B/C/D object or 4-item array), and <code>correct</code>/<code>answer</code>.
-          Optional for PYQs: <code>exam</code>, <code>exam_year</code>/<code>year</code>, <code>profession</code>,
+          Multiple-correct values like <code>AD</code> and numerical-answer PYQs without options are supported.
+          Optional: <code>exam</code>, <code>exam_year</code>/<code>year</code>, <code>profession</code>,
           <code>chapter_id</code>, <code>subject_code</code>.
         </p>
 

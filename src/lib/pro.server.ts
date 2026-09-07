@@ -1,3 +1,5 @@
+import { isCorrectQuizAnswer } from "@/lib/quiz-answer";
+
 type Sb = { from: (t: string) => any };
 
 /** Weakest chapters (lowest accuracy) for a user, derived from submitted quizzes. */
@@ -26,7 +28,7 @@ export async function getAnalyticsFor(
       const key = q.chapter ?? "General";
       const cur = agg.get(key) ?? { correct: 0, total: 0 };
       cur.total += 1;
-      if (answers[q.id] === q.correct) cur.correct += 1;
+      if (isCorrectQuizAnswer(answers[q.id], q.correct)) cur.correct += 1;
       agg.set(key, cur);
     }
   }

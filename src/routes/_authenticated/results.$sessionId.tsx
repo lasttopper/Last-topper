@@ -37,6 +37,7 @@ import {
 import { failMessage } from "@/lib/friendly-error";
 import { shareOrCopy } from "@/lib/native-share";
 import { ReferralCard } from "@/components/ReferralCard";
+import { OPTION_KEYS, getCorrectOptionLetters, hasUsableOptions, isCorrectQuizAnswer } from "@/lib/quiz-answer";
 
 export const Route = createFileRoute("/_authenticated/results/$sessionId")({
   head: () => ({
@@ -79,7 +80,7 @@ function ResultsPage() {
     () => (session?.questions as QuizQuestion[] | undefined) ?? [],
     [session],
   );
-  const answers = (session?.answers as Record<string, "A" | "B" | "C" | "D"> | undefined) ?? {};
+  const answers = (session?.answers as Record<string, string> | undefined) ?? {};
 
   if (!session) return <div className="p-6 text-sm">Not found.</div>;
 
@@ -100,7 +101,7 @@ function ResultsPage() {
   }
 
   async function practiceIncorrect() {
-    const wrong = questions.filter((q) => answers[q.id] !== q.correct);
+    const wrong = questions.filter((q) => !isCorrectQuizAnswer(answers[q.id], q.correct));
     if (wrong.length === 0) {
       toast.success("No incorrect answers!");
       return;
@@ -310,8 +311,10 @@ function ResultsPage() {
         <ul className="space-y-2">
           {questions.map((q, i) => {
             const chosen = answers[q.id];
-            const ok = chosen === q.correct;
+            const ok = isCorrectQuizAnswer(chosen, q.correct);
             const isOpen = expanded.has(q.id);
+            const correctLetters = getCorrectOptionLetters(q.correct);
+            const hasOptions = hasUsableOptions(q.options);
             return (
               <li key={q.id} className="rounded-xl border bg-card">
                 <button
@@ -340,23 +343,33 @@ function ResultsPage() {
                 </button>
                 {isOpen && (
                   <div className="border-t p-4">
-                    <div className="space-y-1.5 text-sm">
-                      {(["A", "B", "C", "D"] as const).map((k) => (
-                        <div
-                          key={k}
-                          className={`flex gap-2 rounded-md p-2 ${
-                            k === q.correct
-                              ? "bg-emerald-50 text-emerald-900"
-                              : k === chosen
-                              ? "bg-red-50 text-red-900"
-                              : ""
-                          }`}
-                        >
-                          <span className="font-semibold">{k}.</span>
-                          <Latex className="block flex-1">{q.options[k]}</Latex>
-                        </div>
-                      ))}
-                    </div>
+                    {hasOptions ? (
+                      <div className="space-y-1.5 text-sm">
+                        {OPTION_KEYS.map((k) => {
+                          const isCorrectOption = correctLetters.includes(k);
+                          const wasChosen = (chosen ?? "").includes(k);
+                          return (
+                            <div
+                              key={k}
+                              className={`flex gap-2 rounded-md p-2 ${
+                                isCorrectOption
+                                  ? "bg-emerald-50 text-emerald-900"
+                                  : wasChosen
+                                  ? "bg-red-50 text-red-900"
+                                  : ""
+                              }`}
+                            >
+                              <span className="font-semibold">{k}.</span>
+                              <Latex className="block flex-1">{q.options[k]}</Latex>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className={`rounded-md p-3 text-sm ${ok ? "bg-emerald-50 text-emerald-900" : "bg-red-50 text-red-900"}`}>
+                        Numerical answer: <span className="font-semibold">{q.correct}</span>
+                      </div>
+                    )}
                     <div className="mt-3 rounded-lg bg-muted p-3 text-sm">
                       <div className="mb-1 text-xs font-semibold text-muted-foreground">Step-by-step explanation</div>
                       <Latex className="block">{q.explanation}</Latex>

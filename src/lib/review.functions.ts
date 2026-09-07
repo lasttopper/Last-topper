@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { QuizQuestion } from "@/lib/learning.functions";
+import { isCorrectQuizAnswer } from "@/lib/quiz-answer";
 
 export type ReviewItem = {
   id: string;
@@ -27,7 +28,7 @@ export const getReviewQueue = createServerFn({ method: "GET" })
     for (const s of sessions ?? []) {
       const qs = (s.questions as QuizQuestion[]) ?? [];
       const ans = (s.answers as Record<string, string>) ?? {};
-      for (const q of qs) if (ans[q.id] !== q.correct) wrong.push(q);
+      for (const q of qs) if (!isCorrectQuizAnswer(ans[q.id], q.correct)) wrong.push(q);
     }
     if (wrong.length) await upsertReviewItems(context.supabase, context.userId, wrong.slice(0, 200));
 

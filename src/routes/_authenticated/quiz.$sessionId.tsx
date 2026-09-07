@@ -15,6 +15,13 @@ import { Progress } from "@/components/ui/progress";
 import { Latex } from "@/components/Latex";
 import { ChevronLeft, ChevronRight, Lightbulb, Timer, Loader2 } from "lucide-react";
 import { failMessage } from "@/lib/friendly-error";
+import {
+  OPTION_KEYS,
+  hasUsableOptions,
+  isMultiCorrect,
+  isNumericQuestion,
+  toggleOptionAnswer,
+} from "@/lib/quiz-answer";
 
 export const Route = createFileRoute("/_authenticated/quiz/$sessionId")({
   head: () => ({
@@ -154,7 +161,10 @@ function QuizPage() {
   }
   if (!q) return null;
 
-  const selected = answers[q.id];
+  const selected = answers[q.id] ?? "";
+  const hasOptions = hasUsableOptions(q.options);
+  const numericMode = isNumericQuestion(q.options, q.correct);
+  const multiMode = hasOptions && isMultiCorrect(q.correct);
 
   return (
     <main className="flex min-h-screen flex-col bg-background">
@@ -181,33 +191,57 @@ function QuizPage() {
       <section className="mx-auto w-full max-w-3xl flex-1 px-5 py-6">
         <div className="rounded-2xl border bg-card p-5">
           <Latex className="block text-base leading-relaxed">{q.question}</Latex>
-          <div className="mt-4 space-y-2">
-            {(["A", "B", "C", "D"] as const).map((k) => {
-              const isSel = selected === k;
-              return (
-                <button
-                  key={k}
-                  type="button"
-                  onClick={() => {
-                    setAnswer(sessionId, q.id, k);
-                    setShowHint(false);
-                  }}
-                  className={`flex w-full items-start gap-3 rounded-xl border p-3 text-left transition-colors ${
-                    isSel ? "border-primary bg-primary/5" : "hover:bg-accent"
-                  }`}
-                >
-                  <span
-                    className={`mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-semibold ${
-                      isSel ? "border-primary bg-primary text-primary-foreground" : ""
+          {numericMode ? (
+            <div className="mt-4 space-y-2">
+              <label htmlFor={`answer-${q.id}`} className="text-sm font-medium">
+                Enter numerical answer
+              </label>
+              <input
+                id={`answer-${q.id}`}
+                value={selected}
+                onChange={(e) => setAnswer(sessionId, q.id, e.target.value)}
+                inputMode="decimal"
+                placeholder="Type your answer"
+                className="w-full rounded-xl border border-border bg-background px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-primary"
+              />
+              <p className="text-xs text-muted-foreground">
+                Numerical PYQs are checked with a small tolerance, so 9 and 9.0 both work.
+              </p>
+            </div>
+          ) : (
+            <div className="mt-4 space-y-2">
+              {multiMode && (
+                <div className="rounded-lg bg-primary/10 px-3 py-2 text-xs font-medium text-primary">
+                  Multiple correct options — select all that apply.
+                </div>
+              )}
+              {OPTION_KEYS.map((k) => {
+                const isSel = selected.includes(k);
+                return (
+                  <button
+                    key={k}
+                    type="button"
+                    onClick={() => {
+                      setAnswer(sessionId, q.id, toggleOptionAnswer(selected, k, multiMode));
+                      setShowHint(false);
+                    }}
+                    className={`flex w-full items-start gap-3 rounded-xl border p-3 text-left transition-colors ${
+                      isSel ? "border-primary bg-primary/5" : "hover:bg-accent"
                     }`}
                   >
-                    {k}
-                  </span>
-                  <Latex className="block flex-1 text-sm">{q.options[k]}</Latex>
-                </button>
-              );
-            })}
-          </div>
+                    <span
+                      className={`mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-semibold ${
+                        isSel ? "border-primary bg-primary text-primary-foreground" : ""
+                      }`}
+                    >
+                      {multiMode && isSel ? "✓" : k}
+                    </span>
+                    <Latex className="block flex-1 text-sm">{q.options[k]}</Latex>
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           {showHint && (
             <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">

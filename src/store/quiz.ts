@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 
-export type Answer = "A" | "B" | "C" | "D";
+export type Answer = string;
 
 type QuizState = {
   // sessionId -> { answers, currentIndex, startedAt }
@@ -13,7 +13,7 @@ type QuizState = {
       startedAt: number;
     }
   >;
-  setAnswer: (sessionId: string, questionId: string, answer: Answer) => void;
+  setAnswer: (sessionId: string, questionId: string, answer: Answer | null) => void;
   setIndex: (sessionId: string, index: number) => void;
   init: (sessionId: string) => void;
   clearSession: (sessionId: string) => void;
@@ -35,10 +35,13 @@ export const useQuizStore = create<QuizState>()(
       setAnswer: (sessionId, questionId, answer) =>
         set((s) => {
           const cur = s.sessions[sessionId] ?? { answers: {}, currentIndex: 0, startedAt: Date.now() };
+          const nextAnswers = { ...cur.answers };
+          if (answer === null || answer === "") delete nextAnswers[questionId];
+          else nextAnswers[questionId] = answer;
           return {
             sessions: {
               ...s.sessions,
-              [sessionId]: { ...cur, answers: { ...cur.answers, [questionId]: answer } },
+              [sessionId]: { ...cur, answers: nextAnswers },
             },
           };
         }),

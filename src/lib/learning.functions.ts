@@ -3,6 +3,7 @@ import { aiChat } from "@/lib/ai-router";
 import { puterGenerateQuestions } from "@/lib/puter";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { isCorrectQuizAnswer, type QuizOptions } from "@/lib/quiz-answer";
 
 export type Chapter = {
   id: string;
@@ -25,8 +26,8 @@ export type QuizQuestion = {
   id: string;
   chapter_id: string;
   question: string;
-  options: { A: string; B: string; C: string; D: string };
-  correct: "A" | "B" | "C" | "D";
+  options: QuizOptions;
+  correct: string;
   hint: string;
   explanation: string;
 };
@@ -475,11 +476,11 @@ export const heartbeatSession = createServerFn({ method: "POST" })
 
 function scoreQuestions(
   questions: QuizQuestion[],
-  answers: Record<string, "A" | "B" | "C" | "D">,
+  answers: Record<string, string>,
 ) {
   let correct = 0;
   for (const q of questions) {
-    if (answers[q.id] && answers[q.id] === q.correct) correct += 1;
+    if (answers[q.id] && isCorrectQuizAnswer(answers[q.id], q.correct)) correct += 1;
   }
   const total = questions.length;
   const incorrect = total - correct;
@@ -489,7 +490,7 @@ function scoreQuestions(
 
 const submitSchema = z.object({
   id: z.string().uuid(),
-  answers: z.record(z.string(), z.enum(["A", "B", "C", "D"])),
+  answers: z.record(z.string(), z.string().max(80)),
   time_taken_seconds: z.number().int().nonnegative(),
 });
 
@@ -563,7 +564,7 @@ export const finalizeStaleSessions = createServerFn({ method: "POST" })
     const finalized: string[] = [];
     for (const s of stale ?? []) {
       const questions = (s.questions as QuizQuestion[]) ?? [];
-      const answers = (s.answers as Record<string, "A" | "B" | "C" | "D">) ?? {};
+      const answers = (s.answers as Record<string, string>) ?? {};
       const { correct, incorrect, accuracy } = scoreQuestions(questions, answers);
       const startMs = new Date(s.start_time as string).getTime();
       const hbMs = new Date((s.last_heartbeat ?? s.start_time) as string).getTime();
@@ -618,7 +619,7 @@ export const getQuizHistory = createServerFn({ method: "GET" })
 export type MistakeItem = {
   session_id: string;
   question: QuizQuestion;
-  chosen: "A" | "B" | "C" | "D" | null;
+  chosen: string | null;
   submitted_at: string;
 };
 
@@ -639,10 +640,10 @@ export const getMistakes = createServerFn({ method: "GET" })
       const items: MistakeItem[] = [];
       for (const s of data ?? []) {
         const qs = (s.questions as QuizQuestion[]) ?? [];
-        const ans = (s.answers as Record<string, "A" | "B" | "C" | "D">) ?? {};
+        const ans = (s.answers as Record<string, string>) ?? {};
         for (const q of qs) {
           const chosen = ans[q.id] ?? null;
-          if (chosen !== q.correct) {
+          if (!isCorrectQuizAnswer(chosen, q.correct)) {
             items.push({
               session_id: s.id as string,
               question: q,
@@ -689,12 +690,12 @@ export const getAnalytics = createServerFn({ method: "GET" })
 
       for (const s of sessions ?? []) {
         const qs = (s.questions as QuizQuestion[]) ?? [];
-        const ans = (s.answers as Record<string, "A" | "B" | "C" | "D">) ?? {};
+        const ans = (s.answers as Record<string, string>) ?? {};
         for (const q of qs) {
           const chosen = ans[q.id];
           if (!chosen) continue;
           totalAttempted += 1;
-          const isCorrect = chosen === q.correct;
+          const isCorrect = isCorrectQuizAnswer(chosen, q.correct);
           if (isCorrect) totalCorrect += 1;
           const cur = chapterAgg.get(q.chapter_id) ?? { correct: 0, attempted: 0 };
           cur.attempted += 1;

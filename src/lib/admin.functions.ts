@@ -202,7 +202,7 @@ type BankOptions = Record<BankOptionKey, string>;
 type BankRow = {
   question: string;
   options: BankOptions;
-  correct: BankOptionKey;
+  correct: string;
   hint: string;
   explanation: string;
   profession: "pcm" | "pcb" | null;
@@ -250,7 +250,7 @@ function normalizeYear(value: unknown) {
   return year;
 }
 
-function normalizeOptions(row: Record<string, unknown>, ctx: z.RefinementCtx): BankOptions | null {
+function normalizeOptions(row: Record<string, unknown>): BankOptions | null {
   const source = readField(row, ["options", "choices", "answers", "answer_options"]);
   const fromArray = Array.isArray(source) ? source : null;
   if (fromArray) {
@@ -284,32 +284,34 @@ function normalizeOptions(row: Record<string, unknown>, ctx: z.RefinementCtx): B
     return { A: optionValues[0], B: optionValues[1], C: optionValues[2], D: optionValues[3] };
   }
 
-  ctx.addIssue({
-    code: z.ZodIssueCode.custom,
-    message: "Each question needs four options: A, B, C and D.",
-  });
   return null;
 }
 
-function normalizeCorrect(value: unknown, options: BankOptions | null): BankOptionKey | null {
-  if (typeof value === "number" && Number.isInteger(value)) {
-    if (value === 0) return "A";
-    if (value >= 1 && value <= 4) return OPTION_KEYS[value - 1];
+function normalizeChoiceLetters(value: string): string {
+  const upper = value.toUpperCase();
+  const compact = upper.replace(/\bAND\b/g, "").replace(/[\s,;|+&/]/g, "").replace(/[()]/g, "");
+  if (/^[ABCD]+$/.test(compact)) {
+    return OPTION_KEYS.filter((key) => compact.includes(key)).join("");
   }
 
-  const text = cleanText(value);
-  if (!text) return null;
-  const upper = text.toUpperCase();
-  if ((OPTION_KEYS as readonly string[]).includes(upper)) return upper as BankOptionKey;
-
   const wrapped = upper.match(/^\(?\s*([ABCD])\s*\)?$/);
-  if (wrapped) return wrapped[1] as BankOptionKey;
+  if (wrapped) return wrapped[1];
 
   const leading = upper.match(/^\(?\s*([ABCD])\s*[\).:\-]/);
-  if (leading) return leading[1] as BankOptionKey;
+  if (leading) return leading[1];
 
   const labelled = upper.match(/(?:ANSWER|ANS|OPTION|CORRECT)\s*[:\-]?\s*([ABCD])\b/);
-  if (labelled) return labelled[1] as BankOptionKey;
+  if (labelled) return labelled[1];
+
+  return "";
+}
+
+function normalizeCorrect(value: unknown, options: BankOptions | null): string | null {
+  const text = cleanText(value);
+  if (!text) return null;
+
+  const letters = normalizeChoiceLetters(text);
+  if (letters) return letters;
 
   if (options) {
     const normalizedAnswer = text.toLowerCase().replace(/\s+/g, " ");
@@ -318,7 +320,8 @@ function normalizeCorrect(value: unknown, options: BankOptions | null): BankOpti
     }
   }
 
-  return null;
+  // JEE Advanced numerical-answer PYQs use values like 9, 0.5, -14.6 etc.
+  return text.slice(0, 80);
 }
 
 const bankRowSchema = z.unknown().transform((value, ctx): BankRow => {
@@ -333,13 +336,20 @@ const bankRowSchema = z.unknown().transform((value, ctx): BankRow => {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Question text is required." });
   }
 
-  const options = normalizeOptions(row, ctx);
+  const options = normalizeOptions(row);
   const correct = normalizeCorrect(
     readField(row, ["correct", "answer", "answer_key", "answerKey", "correct_answer", "correctAnswer", "correct_option", "correctOption", "ans"]),
     options,
   );
   if (!correct) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Correct answer must be A, B, C or D." });
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Correct answer is required." });
+  }
+  const correctIsChoice = !!correct && !!normalizeChoiceLetters(correct);
+  if (correctIsChoice && !options) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Choice questions need four options: A, B, C and D.",
+    });
   }
 
   const chapterId = cleanText(readField(row, ["chapter_id", "chapterId"]));
@@ -366,13 +376,71 @@ const bulkUploadSchema = z.object({
   rows: z.array(bankRowSchema).min(1).max(5000),
 });
 
+type BankInsertRow = {
+  question: string;
+  options: never;
+  correct: string;
+  hint: string;
+  explanation: string;
+  profession: "pcm" | "pcb" | null;
+  chapter_id: string | null;
+  subject_code: string | null;
+  exam: string | null;
+  exam_year: number | null;
+  source: "admin";
+  created_by: string;
+};
+
+function duplicateGroupKey(row: { exam: string | null; exam_year: number | null }) {
+  return `${row.exam ?? "__NULL__"}::${row.exam_year ?? "__NULL__"}`;
+}
+
+function duplicateQuestionKey(row: { question: string; exam: string | null; exam_year: number | null }) {
+  return `${duplicateGroupKey(row)}::${row.question.trim().toLowerCase().replace(/\s+/g, " ")}`;
+}
+
+async function filterExistingBankRows(
+  supabaseAdmin: Awaited<typeof import("@/integrations/supabase/client.server")>["supabaseAdmin"],
+  rows: BankInsertRow[],
+) {
+  const existing = new Set<string>();
+  const groups = new Map<string, { exam: string | null; exam_year: number | null }>();
+  for (const row of rows) groups.set(duplicateGroupKey(row), { exam: row.exam, exam_year: row.exam_year });
+
+  for (const group of groups.values()) {
+    let query = supabaseAdmin
+      .from("question_bank")
+      .select("question, exam, exam_year")
+      .eq("source", "admin")
+      .limit(10000);
+    query = group.exam ? query.eq("exam", group.exam) : query.is("exam", null);
+    query = group.exam_year === null ? query.is("exam_year", null) : query.eq("exam_year", group.exam_year);
+    const { data, error } = await query;
+    if (error) throw error;
+    for (const row of data ?? []) existing.add(duplicateQuestionKey(row));
+  }
+
+  let skipped = 0;
+  const nextRows: BankInsertRow[] = [];
+  for (const row of rows) {
+    const key = duplicateQuestionKey(row);
+    if (existing.has(key)) {
+      skipped += 1;
+      continue;
+    }
+    existing.add(key);
+    nextRows.push(row);
+  }
+  return { rows: nextRows, skipped };
+}
+
 export const adminBulkUploadQuestions = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => bulkUploadSchema.parse(d))
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const rows = data.rows.map((r) => ({
+    const normalizedRows: BankInsertRow[] = data.rows.map((r) => ({
       question: r.question,
       options: r.options as unknown as never,
       correct: r.correct,
@@ -386,16 +454,17 @@ export const adminBulkUploadQuestions = createServerFn({ method: "POST" })
       source: "admin",
       created_by: context.userId,
     }));
+    const deduped = await filterExistingBankRows(supabaseAdmin, normalizedRows);
     let inserted = 0;
-    for (let i = 0; i < rows.length; i += 200) {
-      const chunk = rows.slice(i, i + 200);
+    for (let i = 0; i < deduped.rows.length; i += 200) {
+      const chunk = deduped.rows.slice(i, i + 200);
       const { error, count } = await supabaseAdmin
         .from("question_bank")
         .insert(chunk as unknown as never, { count: "exact" });
       if (error) throw error;
       inserted += count ?? chunk.length;
     }
-    return { inserted };
+    return { inserted, skipped: deduped.skipped };
   });
 
 export const adminBankStats = createServerFn({ method: "GET" })
