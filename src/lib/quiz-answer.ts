@@ -2,7 +2,7 @@ export const OPTION_KEYS = ["A", "B", "C", "D"] as const;
 
 export type OptionKey = (typeof OPTION_KEYS)[number];
 export type QuizAnswer = string;
-export type QuizOptions = Record<OptionKey, string>;
+export type QuizOptions = Record<OptionKey, string> & { __correct?: string; __mode?: string };
 
 export function hasUsableOptions(options: unknown): options is QuizOptions {
   if (!options || typeof options !== "object") return false;
@@ -32,6 +32,16 @@ export function normalizeChoiceAnswer(answer: unknown): string {
 
 export function isMultiCorrect(correct: unknown): boolean {
   return getCorrectOptionLetters(correct).length > 1;
+}
+
+export function getEffectiveCorrect(options: unknown, fallbackCorrect: unknown): string {
+  if (options && typeof options === "object") {
+    const metadata = (options as { __correct?: unknown }).__correct;
+    if (metadata !== null && metadata !== undefined && String(metadata).trim()) {
+      return String(metadata).trim();
+    }
+  }
+  return String(fallbackCorrect ?? "").trim();
 }
 
 export function isNumericQuestion(options: unknown, correct: unknown): boolean {

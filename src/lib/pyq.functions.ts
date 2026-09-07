@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { QuizQuestion } from "@/lib/learning.functions";
+import { getEffectiveCorrect } from "@/lib/quiz-answer";
 
 export type PyqOption = { exam: string; year: number | null; count: number };
 
@@ -65,7 +66,7 @@ export const startPyqQuiz = createServerFn({ method: "POST" })
         chapter_id: (r.chapter_id as string) ?? "",
         question: r.question as string,
         options: r.options as QuizQuestion["options"],
-        correct: r.correct as QuizQuestion["correct"],
+        correct: getEffectiveCorrect(r.options, r.correct),
         hint: (r.hint as string) ?? "",
         explanation: (r.explanation as string) ?? "",
       }));

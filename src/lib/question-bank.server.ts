@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import type { QuizQuestion } from "@/lib/learning.functions";
 import { getStaticFallbackQuestions } from "@/lib/static-questions";
+import { getEffectiveCorrect } from "@/lib/quiz-answer";
 
 type AdminClient = SupabaseClient<Database>;
 
@@ -62,7 +63,7 @@ export async function sampleFromBank(
         chapter_id: (r.chapter_id as string) ?? "",
         question: r.question as string,
         options: r.options as QuizQuestion["options"],
-        correct: r.correct as QuizQuestion["correct"],
+        correct: getEffectiveCorrect(r.options, r.correct),
         hint: (r.hint as string) ?? "",
         explanation: (r.explanation as string) ?? "",
       }));

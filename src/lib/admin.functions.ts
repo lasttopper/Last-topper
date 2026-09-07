@@ -411,8 +411,8 @@ const bulkUploadSchema = z.object({
 
 type BankInsertRow = {
   question: string;
-  options: never;
-  correct: string;
+  options: Record<string, unknown>;
+  correct: BankOptionKey;
   hint: string;
   explanation: string;
   profession: "pcm" | "pcb" | null;
@@ -423,6 +423,17 @@ type BankInsertRow = {
   source: "admin";
   created_by: string;
 };
+
+function toStoredDbAnswer(row: BankRow) {
+  const letters = normalizeChoiceLetters(row.correct);
+  const storedCorrect = (letters ? letters[0] : "A") as BankOptionKey;
+  const options: Record<string, unknown> = { ...row.options };
+  if (row.correct !== storedCorrect) {
+    options.__correct = row.correct;
+    options.__mode = letters ? "multi" : "numeric";
+  }
+  return { options, correct: storedCorrect };
+}
 
 function duplicateGroupKey(row: { exam: string | null; exam_year: number | null }) {
   return `${row.exam ?? "__NULL__"}::${row.exam_year ?? "__NULL__"}`;
@@ -473,20 +484,23 @@ export const adminBulkUploadQuestions = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const normalizedRows: BankInsertRow[] = data.rows.map((r) => ({
-      question: r.question,
-      options: r.options as unknown as never,
-      correct: r.correct,
-      hint: r.hint ?? "",
-      explanation: r.explanation ?? "",
-      profession: r.profession ?? null,
-      chapter_id: r.chapter_id ?? null,
-      subject_code: r.subject_code ?? null,
-      exam: r.exam ? r.exam.toUpperCase() : null,
-      exam_year: r.exam_year ?? null,
-      source: "admin",
-      created_by: context.userId,
-    }));
+    const normalizedRows: BankInsertRow[] = data.rows.map((r) => {
+      const stored = toStoredDbAnswer(r);
+      return {
+        question: r.question,
+        options: stored.options,
+        correct: stored.correct,
+        hint: r.hint ?? "",
+        explanation: r.explanation ?? "",
+        profession: r.profession ?? null,
+        chapter_id: r.chapter_id ?? null,
+        subject_code: r.subject_code ?? null,
+        exam: r.exam ? r.exam.toUpperCase() : null,
+        exam_year: r.exam_year ?? null,
+        source: "admin",
+        created_by: context.userId,
+      };
+    });
     const deduped = await filterExistingBankRows(supabaseAdmin, normalizedRows);
     let inserted = 0;
     for (let i = 0; i < deduped.rows.length; i += 200) {
