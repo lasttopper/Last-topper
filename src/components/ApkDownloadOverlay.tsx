@@ -1,10 +1,19 @@
 import { useEffect, useState } from "react";
-import { Download, ExternalLink, Globe2 } from "lucide-react";
+import { Download, ExternalLink, Globe2, X } from "lucide-react";
 
 const APK_DOWNLOAD_URL =
   "https://github.com/lasttopper/Last-topper/releases/latest/download/LastTopper-release-signed.apk";
 const GITHUB_RELEASES_URL = "https://github.com/lasttopper/Last-topper/releases/latest";
 const DISPLAY_DOMAIN = "last-topper.vercel.app";
+const DISMISS_KEY = "last-topper-apk-overlay-dismissed";
+
+function isDismissed() {
+  try {
+    return window.localStorage.getItem(DISMISS_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Small web-only floating header so browser visitors can quickly install the
@@ -16,6 +25,11 @@ export function ApkDownloadOverlay() {
 
   useEffect(() => {
     let cancelled = false;
+    if (isDismissed()) {
+      return () => {
+        cancelled = true;
+      };
+    }
     (async () => {
       try {
         const { Capacitor } = await import("@capacitor/core");
@@ -28,6 +42,15 @@ export function ApkDownloadOverlay() {
       cancelled = true;
     };
   }, []);
+
+  const closeOverlay = () => {
+    setShow(false);
+    try {
+      window.localStorage.setItem(DISMISS_KEY, "1");
+    } catch {
+      // Non-critical: closing still works for the current page view.
+    }
+  };
 
   if (!show) return null;
 
@@ -62,6 +85,14 @@ export function ApkDownloadOverlay() {
           <Download className="h-3.5 w-3.5" />
           Download APK
         </a>
+        <button
+          type="button"
+          onClick={closeOverlay}
+          className="inline-flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+          aria-label="Close download APK overlay"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
       </div>
     </div>
   );

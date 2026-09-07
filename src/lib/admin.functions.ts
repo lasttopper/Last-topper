@@ -197,26 +197,173 @@ export const adminReportsChart = createServerFn({ method: "GET" })
 
 /* ------------------------ Question bank bulk upload ------------------------ */
 
-const bankRowSchema = z.object({
-  question: z.string().min(3),
-  options: z.object({
-    A: z.string().min(1),
-    B: z.string().min(1),
-    C: z.string().min(1),
-    D: z.string().min(1),
-  }),
-  correct: z.enum(["A", "B", "C", "D"]),
-  hint: z.string().optional().default(""),
-  explanation: z.string().optional().default(""),
-  profession: z.enum(["pcm", "pcb"]).nullable().optional(),
-  chapter_id: z.string().uuid().nullable().optional(),
-  subject_code: z.string().nullable().optional(),
-  exam: z.string().max(40).nullable().optional(),
-  exam_year: z.number().int().min(1980).max(2100).nullable().optional(),
+type BankOptionKey = "A" | "B" | "C" | "D";
+type BankOptions = Record<BankOptionKey, string>;
+type BankRow = {
+  question: string;
+  options: BankOptions;
+  correct: BankOptionKey;
+  hint: string;
+  explanation: string;
+  profession: "pcm" | "pcb" | null;
+  chapter_id: string | null;
+  subject_code: string | null;
+  exam: string | null;
+  exam_year: number | null;
+};
+
+const OPTION_KEYS = ["A", "B", "C", "D"] as const;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function compactKey(key: string) {
+  return key.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function readField(row: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    if (Object.prototype.hasOwnProperty.call(row, key)) return row[key];
+  }
+  const lookup = new Map(Object.entries(row).map(([key, value]) => [compactKey(key), value]));
+  for (const key of keys) {
+    const value = lookup.get(compactKey(key));
+    if (value !== undefined) return value;
+  }
+  return undefined;
+}
+
+function cleanText(value: unknown) {
+  if (value === null || value === undefined) return "";
+  return String(value).trim();
+}
+
+function normalizeProfession(value: unknown): "pcm" | "pcb" | null {
+  const text = cleanText(value).toLowerCase();
+  if (text === "pcm" || text === "jee" || text === "math" || text === "maths") return "pcm";
+  if (text === "pcb" || text === "neet" || text === "bio" || text === "biology") return "pcb";
+  return null;
+}
+
+function normalizeYear(value: unknown) {
+  if (value === null || value === undefined || value === "") return null;
+  const year = typeof value === "number" ? value : Number.parseInt(cleanText(value), 10);
+  if (!Number.isFinite(year) || !Number.isInteger(year) || year < 1980 || year > 2100) return null;
+  return year;
+}
+
+function normalizeOptions(row: Record<string, unknown>, ctx: z.RefinementCtx): BankOptions | null {
+  const source = readField(row, ["options", "choices", "answers", "answer_options"]);
+  const fromArray = Array.isArray(source) ? source : null;
+  if (fromArray) {
+    const values = fromArray.slice(0, 4).map(cleanText);
+    if (values.length === 4 && values.every(Boolean)) {
+      return { A: values[0], B: values[1], C: values[2], D: values[3] };
+    }
+  }
+
+  const optionSource =
+    source && typeof source === "object" && !Array.isArray(source)
+      ? (source as Record<string, unknown>)
+      : row;
+  const optionValues = OPTION_KEYS.map((key, index) =>
+    cleanText(
+      readField(optionSource, [
+        key,
+        key.toLowerCase(),
+        `option_${key.toLowerCase()}`,
+        `option${key}`,
+        `option${key.toLowerCase()}`,
+        `option_${index + 1}`,
+        `option${index + 1}`,
+        String(index),
+        String(index + 1),
+      ]),
+    ),
+  );
+
+  if (optionValues.every(Boolean)) {
+    return { A: optionValues[0], B: optionValues[1], C: optionValues[2], D: optionValues[3] };
+  }
+
+  ctx.addIssue({
+    code: z.ZodIssueCode.custom,
+    message: "Each question needs four options: A, B, C and D.",
+  });
+  return null;
+}
+
+function normalizeCorrect(value: unknown, options: BankOptions | null): BankOptionKey | null {
+  if (typeof value === "number" && Number.isInteger(value)) {
+    if (value === 0) return "A";
+    if (value >= 1 && value <= 4) return OPTION_KEYS[value - 1];
+  }
+
+  const text = cleanText(value);
+  if (!text) return null;
+  const upper = text.toUpperCase();
+  if ((OPTION_KEYS as readonly string[]).includes(upper)) return upper as BankOptionKey;
+
+  const wrapped = upper.match(/^\(?\s*([ABCD])\s*\)?$/);
+  if (wrapped) return wrapped[1] as BankOptionKey;
+
+  const leading = upper.match(/^\(?\s*([ABCD])\s*[\).:\-]/);
+  if (leading) return leading[1] as BankOptionKey;
+
+  const labelled = upper.match(/(?:ANSWER|ANS|OPTION|CORRECT)\s*[:\-]?\s*([ABCD])\b/);
+  if (labelled) return labelled[1] as BankOptionKey;
+
+  if (options) {
+    const normalizedAnswer = text.toLowerCase().replace(/\s+/g, " ");
+    for (const key of OPTION_KEYS) {
+      if (options[key].toLowerCase().replace(/\s+/g, " ") === normalizedAnswer) return key;
+    }
+  }
+
+  return null;
+}
+
+const bankRowSchema = z.unknown().transform((value, ctx): BankRow => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Each row must be an object." });
+    return z.NEVER as never;
+  }
+
+  const row = value as Record<string, unknown>;
+  const question = cleanText(readField(row, ["question", "question_text", "prompt", "stem"]));
+  if (question.length < 3) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Question text is required." });
+  }
+
+  const options = normalizeOptions(row, ctx);
+  const correct = normalizeCorrect(
+    readField(row, ["correct", "answer", "answer_key", "answerKey", "correct_answer", "correctAnswer", "correct_option", "correctOption", "ans"]),
+    options,
+  );
+  if (!correct) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Correct answer must be A, B, C or D." });
+  }
+
+  const chapterId = cleanText(readField(row, ["chapter_id", "chapterId"]));
+  const subjectCode = cleanText(readField(row, ["subject_code", "subjectCode", "subject"]));
+  const exam = cleanText(readField(row, ["exam", "exam_name", "examName", "test", "paper"]));
+
+  return {
+    question,
+    options: options ?? { A: "", B: "", C: "", D: "" },
+    correct: correct ?? "A",
+    hint: cleanText(readField(row, ["hint"])),
+    explanation: cleanText(readField(row, ["explanation", "solution", "rationale"])),
+    profession: normalizeProfession(readField(row, ["profession", "stream", "course"])),
+    // Many PYQ files use chapter names here; keep upload resilient by storing
+    // only valid UUIDs and leaving everything else unlinked instead of failing.
+    chapter_id: chapterId && UUID_RE.test(chapterId) ? chapterId : null,
+    subject_code: subjectCode ? subjectCode.toLowerCase().slice(0, 80) : null,
+    exam: exam ? exam.toUpperCase().slice(0, 40) : null,
+    exam_year: normalizeYear(readField(row, ["exam_year", "examYear", "year"])),
+  };
 });
 
 const bulkUploadSchema = z.object({
-  rows: z.array(bankRowSchema).min(1).max(2000),
+  rows: z.array(bankRowSchema).min(1).max(5000),
 });
 
 export const adminBulkUploadQuestions = createServerFn({ method: "POST" })

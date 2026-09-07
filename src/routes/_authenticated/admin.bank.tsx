@@ -28,33 +28,83 @@ const SAMPLE = `[
     "hint": "Vectors have magnitude and direction.",
     "explanation": "Displacement is a vector; the others are scalars.",
     "profession": "pcm",
-    "subject_code": "physics"
+    "subject_code": "physics",
+    "exam": "JEE Main",
+    "exam_year": 2024
   }
 ]`;
+
+const UPLOAD_CHUNK_SIZE = 150;
+
+function extractQuestionRows(parsed: unknown): unknown[] {
+  if (Array.isArray(parsed)) return parsed;
+  if (parsed && typeof parsed === "object") {
+    const obj = parsed as Record<string, unknown>;
+    for (const key of ["rows", "questions", "data"]) {
+      if (Array.isArray(obj[key])) return obj[key] as unknown[];
+    }
+  }
+  throw new Error("Root must be an array, or an object with a rows/questions array.");
+}
+
+function uploadFailureMessage(err: Error) {
+  const message = err.message ?? "";
+  if (
+    message.startsWith("Invalid JSON") ||
+    message.startsWith("Root must") ||
+    message.startsWith("No questions") ||
+    message.startsWith("Upload failed near")
+  ) {
+    return message;
+  }
+  return failMessage(err);
+}
 
 function BankAdmin() {
   const qc = useQueryClient();
   const stats = useQuery({ queryKey: ["bank-stats"], queryFn: () => adminBankStats() });
   const [json, setJson] = useState("");
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState("");
 
   const upload = useMutation({
     mutationFn: async (text: string) => {
+      setProgress("Parsing JSON…");
       let parsed: unknown;
       try {
         parsed = JSON.parse(text);
       } catch {
         throw new Error("Invalid JSON — check syntax.");
       }
-      if (!Array.isArray(parsed)) throw new Error("Root must be an array of question objects.");
-      return adminBulkUploadQuestions({ data: { rows: parsed as never } });
+      const rows = extractQuestionRows(parsed);
+      if (rows.length === 0) throw new Error("No questions found in JSON.");
+      let inserted = 0;
+      for (let i = 0; i < rows.length; i += UPLOAD_CHUNK_SIZE) {
+        const chunk = rows.slice(i, i + UPLOAD_CHUNK_SIZE);
+        const start = i + 1;
+        const end = Math.min(i + chunk.length, rows.length);
+        setProgress(`Uploading rows ${start}-${end} of ${rows.length}…`);
+        try {
+          const result = await adminBulkUploadQuestions({ data: { rows: chunk as never } });
+          inserted += result.inserted;
+        } catch {
+          throw new Error(
+            `Upload failed near rows ${start}-${end}. Check that each question has text, four options, and a correct answer.`,
+          );
+        }
+      }
+      return { inserted };
     },
     onSuccess: (r) => {
       toast.success(`Uploaded ${r.inserted} questions`);
       setJson("");
+      setProgress("");
       qc.invalidateQueries({ queryKey: ["bank-stats"] });
     },
-    onError: (e: Error) => toast.error(failMessage(e)),
+    onError: (e: Error) => {
+      setProgress("");
+      toast.error(uploadFailureMessage(e));
+    },
   });
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -81,16 +131,17 @@ function BankAdmin() {
       <section className="rounded-2xl border border-border bg-card p-4">
         <h2 className="text-base font-semibold">Bulk upload questions (JSON)</h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Root must be an array. Each item needs <code>question</code>, <code>options</code> (A/B/C/D),
-          and <code>correct</code>. Optional: <code>hint</code>, <code>explanation</code>,
-          <code>profession</code> (pcm/pcb), <code>chapter_id</code>, <code>subject_code</code>.
+          Root can be an array or <code>{`{ "questions": [...] }`}</code>. Each item needs <code>question</code>,
+          four <code>options</code> (A/B/C/D object or 4-item array), and <code>correct</code>/<code>answer</code>.
+          Optional for PYQs: <code>exam</code>, <code>exam_year</code>/<code>year</code>, <code>profession</code>,
+          <code>chapter_id</code>, <code>subject_code</code>.
         </p>
 
         <div className="mt-3 flex flex-wrap gap-2">
           <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm hover:bg-muted">
             <Upload className="h-4 w-4" />
             <span>{busy ? "Reading…" : "Choose JSON file"}</span>
-            <input type="file" accept="application/json,.json" className="hidden" onChange={onFile} />
+            <input type="file" accept="application/json,text/plain,.json,.txt" className="hidden" onChange={onFile} />
           </label>
           <button
             type="button"
@@ -109,7 +160,10 @@ function BankAdmin() {
           spellCheck={false}
         />
 
-        <div className="mt-3 flex items-center justify-end gap-2">
+        <div className="mt-3 flex items-center justify-between gap-2">
+          <div className="min-h-5 text-xs text-muted-foreground">
+            {progress || (upload.isPending ? "Uploading…" : "")}
+          </div>
           <button
             type="button"
             className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
